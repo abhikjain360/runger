@@ -1,4 +1,4 @@
-- move to a event generation and action model to easily add new commands and state changes
 - more metadata in state::entry::OpenEntries::Entries
 - sorting
 - more colors
+- margin from top and bottom for selected column
