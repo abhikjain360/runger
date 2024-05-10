@@ -136,6 +136,7 @@ impl State {
             // parent_path does not exist
             return Ok(false);
         };
+        let child_path = self.first_visible_column.clone();
         let parent_path = Rc::new(parent_path.to_path_buf());
 
         // create an unopened entry for the parent path if there is none
@@ -144,6 +145,16 @@ impl State {
         // try to open parent path
         self.first_visible_column = parent_path;
         self.try_open_selected_path()?;
+
+        if let Entry {
+            ty: EntryType::Opened(opened),
+            ..
+        } = self.selected_entry_mut()
+        {
+            if !opened.set_selected_entry(&child_path) {
+                tracing::warn!("unable to set the selected entry in parent column");
+            }
+        }
 
         Ok(true)
     }

@@ -92,6 +92,21 @@ impl Opened {
         self.entries().map(|entries| &entries[selected])
     }
 
+    /// Returns true if the path is found and set as `selected`.
+    pub(crate) fn set_selected_entry(&mut self, path: &Rc<PathBuf>) -> bool {
+        let res = self.entries().and_then(|entries| {
+            entries
+                .iter()
+                .enumerate()
+                .find_map(|(idx, entry)| (entry == path).then_some(idx))
+        });
+        if res.is_some() {
+            self.selected = res;
+            return true;
+        }
+        false
+    }
+
     pub(crate) fn select_up(&mut self) -> bool {
         let (Some(mut selected), Some(entries)) = (self.selected.take(), self.entries()) else {
             return false;
