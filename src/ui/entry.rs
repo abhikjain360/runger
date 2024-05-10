@@ -10,7 +10,10 @@ use ratatui::{
 };
 
 use crate::state::{
-    entry::{opened::OpenedEntries, EntryType, Opened},
+    entry::{
+        opened::{OpenedEntries, Selected},
+        EntryType, Opened,
+    },
     Entry,
 };
 
@@ -62,7 +65,8 @@ impl StatefulWidgetRef for Opened {
             }
         };
 
-        let mut list_state = ListState::default().with_selected(self.selected);
+        let selected_idx_opt = self.selected.as_ref().map(Selected::idx);
+        let mut list_state = ListState::default().with_selected(selected_idx_opt);
 
         if !entries.is_empty() {
             let list = bordered_list(state.selected).items(entries.iter().filter_map(|entry| {

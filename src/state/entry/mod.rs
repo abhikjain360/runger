@@ -1,10 +1,12 @@
 use std::{fs, io, path::PathBuf, rc::Rc};
 
-use crate::Result;
+use crate::{
+    state::entry::opened::{OpenedEntries, Selected},
+    Result,
+};
 
 pub mod opened;
 pub use opened::Opened;
-use opened::OpenedEntries;
 
 #[derive(Debug, Clone)]
 pub enum EntryType {
@@ -57,7 +59,7 @@ impl Entry {
         Self {
             path,
             ty: EntryType::Opened(Opened {
-                selected: entries.first().map(|_| 0),
+                selected: entries.first().map(|_| Selected::new(0, 0)),
                 entries: OpenedEntries::Entries(entries),
             }),
         }
