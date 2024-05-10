@@ -10,7 +10,7 @@ use ratatui::{
 };
 
 use crate::state::{
-    entry::{EntryType, Opened, OpenedEntries},
+    entry::{opened::OpenedEntries, EntryType, Opened},
     Entry,
 };
 
