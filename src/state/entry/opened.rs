@@ -1,9 +1,17 @@
 use std::{path::PathBuf, rc::Rc};
 
+use ratatui::widgets::ListState;
+
 #[derive(Debug, Clone)]
 pub struct Opened {
     pub(crate) entries: OpenedEntries,
-    pub(crate) selected: Option<usize>,
+    pub(crate) selected: Option<Selected>,
+}
+
+#[derive(Debug, Clone)]
+pub struct Selected {
+    idx: usize,
+    offset: usize,
 }
 
 #[derive(Debug, Clone)]
@@ -22,22 +30,25 @@ impl Opened {
     }
 
     pub(crate) fn selected_entry(&self) -> Option<&Rc<PathBuf>> {
-        let selected = self.selected.as_ref().copied()?;
-        self.entries().map(|entries| &entries[selected])
+        let selected = self.selected.as_ref()?;
+        self.entries().map(|entries| &entries[selected.idx])
     }
 
     /// Returns true if the path is found and set as `selected`.
     pub(crate) fn set_selected_entry(&mut self, path: &Rc<PathBuf>) -> bool {
-        let res = self.entries().and_then(|entries| {
+        let Some(idx) = self.entries().and_then(|entries| {
             entries
                 .iter()
                 .enumerate()
                 .find_map(|(idx, entry)| (entry == path).then_some(idx))
-        });
-        if res.is_some() {
-            self.selected = res;
-            return true;
-        }
+        }) else {
+            return false;
+        };
+
+        let mut selected = self.selected.take().unwrap_or_else(|| Selected::new(0, 0));
+        selected.idx = idx;
+        self.selected = Some(selected);
+
         false
     }
 
@@ -50,10 +61,10 @@ impl Opened {
             return false;
         }
 
-        if selected > 0 {
-            selected -= 1;
+        if selected.idx > 0 {
+            selected.idx -= 1;
         } else {
-            selected = entries.len() - 1;
+            selected.idx = entries.len() - 1;
         }
 
         self.selected = Some(selected);
@@ -70,15 +81,33 @@ impl Opened {
             return false;
         }
 
-        if selected < entries.len() - 1 {
-            selected += 1;
+        if selected.idx < entries.len() - 1 {
+            selected.idx += 1;
         } else {
-            selected = 0;
+            selected.idx = 0;
         }
 
         self.selected = Some(selected);
 
         true
+    }
+
+    pub(crate) fn generate_list_state(&mut self, max_col_height: usize) -> ListState {
+        let mut liststate = ListState::default();
+
+        if let Some(selected) = self.selected.as_mut() {
+            if selected.offset > selected.idx {
+                selected.offset = selected.idx;
+            } else if selected.idx - selected.offset >= max_col_height {
+                selected.offset = selected.idx - max_col_height + 1;
+            }
+
+            liststate = liststate
+                .with_selected(Some(selected.idx))
+                .with_offset(selected.offset);
+        }
+
+        liststate
     }
 }
 
@@ -88,5 +117,18 @@ impl OpenedEntries {
             OpenedEntries::PermissionDenied => false,
             OpenedEntries::Entries(entries) => entries.is_empty(),
         }
+    }
+}
+
+impl Selected {
+    pub fn new(idx: usize, offset_from_top: usize) -> Self {
+        Self {
+            idx,
+            offset: offset_from_top,
+        }
+    }
+
+    pub fn idx(&self) -> usize {
+        self.idx
     }
 }

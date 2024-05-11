@@ -32,6 +32,7 @@ pub fn init_logging(mut log_file_path: PathBuf, log_level: cli::LogLevel) -> Res
         cli::LogLevel::Warn => tracing::Level::WARN,
         cli::LogLevel::Info => tracing::Level::INFO,
         cli::LogLevel::Debug => tracing::Level::DEBUG,
+        cli::LogLevel::Trace => tracing::Level::TRACE,
     };
 
     // log to file

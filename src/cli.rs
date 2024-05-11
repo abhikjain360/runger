@@ -33,6 +33,7 @@ pub enum LogLevel {
     #[default]
     Info,
     Debug,
+    Trace,
 }
 
 impl Args {

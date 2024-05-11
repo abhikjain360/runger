@@ -3,14 +3,18 @@ use std::iter;
 use ratatui::{
     buffer::Buffer,
     layout::{Constraint, Layout, Rect},
-    widgets::{StatefulWidgetRef, WidgetRef},
+    widgets::StatefulWidget,
 };
 
-use crate::{state::State, ui::entry::EntryState};
+use crate::{state::State, ui::entry::EntryWidget};
 
-impl WidgetRef for &State {
-    fn render_ref(&self, area: Rect, buf: &mut Buffer) {
-        let visible_columns = self.visible_columns().collect::<Vec<_>>();
+pub(crate) struct StateWidget;
+
+impl StatefulWidget for StateWidget {
+    type State = State;
+    fn render(self, area: Rect, buf: &mut Buffer, state: &mut State) {
+        let selected_column = state.selected_column;
+        let visible_columns = state.visible_columns_mut().collect::<Vec<_>>();
         let layout = Layout::horizontal(Constraint::from_fills(
             iter::repeat(1).take(visible_columns.len()),
         ))
@@ -21,10 +25,10 @@ impl WidgetRef for &State {
             .zip(layout.into_iter())
             .enumerate()
         {
-            let entry_state = &mut EntryState {
-                selected: idx == self.selected_column,
+            let entry_state = EntryWidget {
+                selected: idx == selected_column,
             };
-            entry.render_ref(*area, buf, entry_state);
+            entry_state.render(*area, buf, entry);
         }
     }
 }
