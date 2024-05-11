@@ -37,16 +37,21 @@ impl StatefulWidget for OpenedWidget {
             }
         };
 
-        let list = bordered_list(self.selected).items(entries.iter().filter_map(|entry| {
-            let file_name = entry.file_name()?.to_string_lossy().into_owned();
-
-            let mut text = Text::from(file_name);
-            if entry.is_dir() {
-                text = text.blue().bold();
-            }
-
-            Some(text)
-        }));
+        let list = bordered_list(self.selected).items(entries.iter().filter_map(path_formatting));
         StatefulWidget::render(list, area, buf, &mut list_state);
     }
+}
+
+fn path_formatting(path: &Rc<PathBuf>) -> Option<Text> {
+    let file_name = path.file_name()?.to_string_lossy().into_owned();
+
+    let mut text = Text::from(file_name);
+    text = match (path.is_dir(), path.is_symlink()) {
+        (true, true) => text.light_green().bold(),
+        (true, false) => text.blue().bold(),
+        (false, true) => text.light_green(),
+        (false, false) => text,
+    };
+
+    Some(text)
 }
