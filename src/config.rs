@@ -18,6 +18,7 @@ pub enum Error {
 impl Default for Config {
     fn default() -> Self {
         Self {
+            // SAFETY: it is not zero
             required_columns: unsafe { NonZeroUsize::new_unchecked(3) },
         }
     }
