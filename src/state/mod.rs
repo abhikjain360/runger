@@ -42,7 +42,7 @@ impl State {
     }
 
     fn create_entry_if_not_exists(&mut self, path: &Rc<PathBuf>) {
-        if self.entry(&path).is_none() {
+        if self.entry(path).is_none() {
             let next_entry = Entry::new(path.clone());
             self.entries.insert(path.clone(), next_entry);
         }
@@ -171,16 +171,14 @@ impl State {
 
     pub(crate) fn selected_entry(&self) -> &Entry {
         self.visible_columns()
-            .skip(self.selected_column)
-            .next()
+            .nth(self.selected_column)
             .expect("self.selected_column does not exist")
     }
 
     pub(crate) fn selected_entry_mut(&mut self) -> &mut Entry {
         let selected_column = self.selected_column;
         self.visible_columns_mut()
-            .skip(selected_column)
-            .next()
+            .nth(selected_column)
             .expect("self.selected_column does not exist")
     }
 

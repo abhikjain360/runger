@@ -41,7 +41,7 @@ impl Config {
             Some(0) => return Err(Error::ZeroRequiredColumns.into()),
             Some(val) => {
                 config.required_columns =
-                    NonZeroUsize::new(val).ok_or_else(|| Error::ZeroRequiredColumns)?;
+                    NonZeroUsize::new(val).ok_or(Error::ZeroRequiredColumns)?;
             }
             _ => {}
         };

@@ -68,6 +68,7 @@ impl State {
     }
 
     fn handle_ctrl_key_event(&self, key_code: KeyCode) -> bool {
+        #[allow(clippy::match_like_matches_macro)]
         match key_code {
             KeyCode::Char('c') => true,
             _ => false,

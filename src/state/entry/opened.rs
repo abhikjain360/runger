@@ -24,7 +24,7 @@ pub enum OpenedEntries {
 impl Opened {
     pub(crate) fn entries(&self) -> Option<&[Rc<PathBuf>]> {
         if let OpenedEntries::Entries(entries) = &self.entries {
-            return Some(&entries);
+            return Some(entries);
         }
         None
     }

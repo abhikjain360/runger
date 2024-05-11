@@ -20,11 +20,7 @@ impl StatefulWidget for StateWidget {
         ))
         .split(area);
 
-        for (idx, (entry, area)) in visible_columns
-            .into_iter()
-            .zip(layout.into_iter())
-            .enumerate()
-        {
+        for (idx, (entry, area)) in visible_columns.into_iter().zip(layout.iter()).enumerate() {
             let entry_state = EntryWidget {
                 selected: idx == selected_column,
             };

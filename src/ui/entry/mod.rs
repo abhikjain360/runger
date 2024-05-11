@@ -20,7 +20,7 @@ pub struct EntryWidget {
 }
 
 impl EntryWidget {
-    fn into_opened(&mut self, path: Rc<PathBuf>) -> OpenedWidget {
+    fn get_opened(&self, path: Rc<PathBuf>) -> OpenedWidget {
         OpenedWidget {
             selected: self.selected,
             path,
@@ -31,10 +31,10 @@ impl EntryWidget {
 impl StatefulWidget for EntryWidget {
     type State = Entry;
 
-    fn render(mut self, area: Rect, buf: &mut Buffer, state: &mut Entry) {
+    fn render(self, area: Rect, buf: &mut Buffer, state: &mut Entry) {
         match &mut state.ty {
             EntryType::Opened(opened) => {
-                StatefulWidget::render(self.into_opened(state.path.clone()), area, buf, opened)
+                StatefulWidget::render(self.get_opened(state.path.clone()), area, buf, opened)
             }
             EntryType::File => render_file(area, buf, state.path.clone()),
             EntryType::Unopened => render_unopened(area, buf),
@@ -48,7 +48,7 @@ fn render_file(area: Rect, buf: &mut Buffer, path: Rc<PathBuf>) {
 }
 
 fn render_unopened(area: Rect, buf: &mut Buffer) {
-    let para = Paragraph::new(format!("loading")).block(Block::bordered());
+    let para = Paragraph::new("loading".to_string()).block(Block::bordered());
     Widget::render(para, area, buf)
 }
 
