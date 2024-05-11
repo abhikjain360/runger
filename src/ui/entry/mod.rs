@@ -37,7 +37,7 @@ impl StatefulWidget for EntryWidget {
                 StatefulWidget::render(self.into_opened(state.path.clone()), area, buf, opened)
             }
             EntryType::File => render_file(area, buf, state.path.clone()),
-            EntryType::Unopened => render_unopened(area, buf, state.path.clone()),
+            EntryType::Unopened => render_unopened(area, buf),
         }
     }
 }
@@ -47,7 +47,12 @@ fn render_file(area: Rect, buf: &mut Buffer, path: Rc<PathBuf>) {
     Widget::render(para, area, buf)
 }
 
-fn render_unopened(area: Rect, buf: &mut Buffer, path: Rc<PathBuf>) {
+fn render_unopened(area: Rect, buf: &mut Buffer) {
+    let para = Paragraph::new(format!("loading")).block(Block::bordered());
+    Widget::render(para, area, buf)
+}
+
+fn render_empty_dir(area: Rect, buf: &mut Buffer, path: Rc<PathBuf>) {
     let para =
         Paragraph::new(format!("empty dir: {}", path.to_string_lossy())).block(Block::bordered());
     Widget::render(para, area, buf)

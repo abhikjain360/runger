@@ -10,7 +10,7 @@ use ratatui::{
 
 use crate::{
     state::entry::{opened::OpenedEntries, Opened},
-    ui::entry::{bordered_list, render_unopened},
+    ui::entry::{bordered_list, render_empty_dir},
 };
 
 pub struct OpenedWidget {
@@ -27,7 +27,7 @@ impl StatefulWidget for OpenedWidget {
         let entries = match &state.entries {
             OpenedEntries::Entries(entries) if !entries.is_empty() => entries,
             OpenedEntries::Entries(_) => {
-                render_unopened(area, buf, self.path.clone());
+                render_empty_dir(area, buf, self.path.clone());
                 return;
             }
             OpenedEntries::PermissionDenied => {
