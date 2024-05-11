@@ -1,5 +1,7 @@
 use std::{path::PathBuf, rc::Rc};
 
+use ratatui::widgets::ListState;
+
 #[derive(Debug, Clone)]
 pub struct Opened {
     pub(crate) entries: OpenedEntries,
@@ -9,7 +11,7 @@ pub struct Opened {
 #[derive(Debug, Clone)]
 pub struct Selected {
     idx: usize,
-    offset_from_top: usize,
+    offset: usize,
 }
 
 #[derive(Debug, Clone)]
@@ -89,6 +91,24 @@ impl Opened {
 
         true
     }
+
+    pub(crate) fn generate_list_state(&mut self, max_col_height: usize) -> ListState {
+        let mut liststate = ListState::default();
+
+        if let Some(selected) = self.selected.as_mut() {
+            if selected.offset > selected.idx {
+                selected.offset = selected.idx;
+            } else if selected.idx - selected.offset >= max_col_height {
+                selected.offset = selected.idx - max_col_height + 1;
+            }
+
+            liststate = liststate
+                .with_selected(Some(selected.idx))
+                .with_offset(selected.offset);
+        }
+
+        liststate
+    }
 }
 
 impl OpenedEntries {
@@ -104,7 +124,7 @@ impl Selected {
     pub fn new(idx: usize, offset_from_top: usize) -> Self {
         Self {
             idx,
-            offset_from_top,
+            offset: offset_from_top,
         }
     }
 

@@ -53,17 +53,25 @@ fn render_unopened(area: Rect, buf: &mut Buffer, path: Rc<PathBuf>) {
     Widget::render(para, area, buf)
 }
 
-fn bordered_list<'a>(selected: bool) -> List<'a> {
+fn bordered_block<'a>(selected: bool) -> Block<'a> {
     let mut block = Block::bordered();
-    let mut highlist_style = Style::new().black().on_blue();
 
     if selected {
         block = block
             .border_style(Style::new().yellow())
             .border_set(symbols::border::THICK);
+    }
 
+    block
+}
+
+fn bordered_list<'a>(selected: bool) -> List<'a> {
+    let mut highlist_style = Style::new().black().on_blue();
+
+    if selected {
         highlist_style = highlist_style.on_yellow();
     }
 
+    let block = bordered_block(selected);
     List::default().highlight_style(highlist_style).block(block)
 }
