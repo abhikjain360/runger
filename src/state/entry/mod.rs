@@ -65,9 +65,3 @@ impl Entry {
         }
     }
 }
-
-impl EntryType {
-    pub fn is_file(&self) -> bool {
-        matches!(self, EntryType::File)
-    }
-}
