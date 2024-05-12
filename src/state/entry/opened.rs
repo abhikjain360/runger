@@ -2,10 +2,13 @@ use std::{path::PathBuf, rc::Rc};
 
 use ratatui::widgets::ListState;
 
+use crate::config::Config;
+
 #[derive(Debug, Clone)]
 pub struct Opened {
     pub(crate) entries: OpenedEntries,
     pub(crate) selected: Option<Selected>,
+    pub(crate) config: Rc<Config>,
 }
 
 #[derive(Debug, Clone)]
@@ -94,12 +97,26 @@ impl Opened {
 
     pub(crate) fn generate_list_state(&mut self, max_col_height: usize) -> ListState {
         let mut liststate = ListState::default();
+        let entries_len = self.entries().map(|entries| entries.len()).unwrap_or(0);
 
         if let Some(selected) = self.selected.as_mut() {
-            if selected.offset > selected.idx {
-                selected.offset = selected.idx;
-            } else if selected.idx - selected.offset >= max_col_height {
-                selected.offset = selected.idx - max_col_height + 1;
+            let top_margin = self.config.column_margin.min(selected.idx);
+
+            // if offset + margin is after idx ..
+            if selected.offset + top_margin > selected.idx {
+                // .. then set it to margin above idx, as offset should not be after idx ..
+                selected.offset = selected.idx - top_margin;
+            }
+            // .. else if gap b/w offset and idx and greater than (col height - margin) then offset
+            // should move down until it is is just equal to that ..
+            else {
+                if selected.idx + self.config.column_margin >= selected.offset + max_col_height {
+                    selected.offset = selected.idx + self.config.column_margin - max_col_height + 1;
+
+                    // .. unless we have already reached the end of entries (idx is on entries_len
+                    // - 1), then we set it to entries_len - max_col_height - 1;
+                    selected.offset = selected.offset.min(entries_len - max_col_height);
+                }
             }
 
             liststate = liststate

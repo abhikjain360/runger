@@ -52,7 +52,7 @@ pub fn init_logging(mut log_file_path: PathBuf, log_level: cli::LogLevel) -> Res
 fn run(path: PathBuf, config_path: PathBuf) -> Result<()> {
     let config = Config::new(config_path)?;
 
-    let state = &mut State::new(path, config.required_columns)?;
+    let state = &mut State::new(path, config)?;
 
     let mut terminal = terminal::init()?;
 

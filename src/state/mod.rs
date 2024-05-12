@@ -1,8 +1,8 @@
 #![allow(dead_code)]
-use std::{num::NonZeroUsize, path::PathBuf, rc::Rc};
+use std::{path::PathBuf, rc::Rc};
 
 pub(crate) use crate::state::entry::Entry;
-use crate::{Result, RungerMap};
+use crate::{config::Config, Result, RungerMap};
 
 use self::entry::EntryType;
 
@@ -18,21 +18,23 @@ mod visible_columns;
 pub struct State {
     pub(crate) entries: RungerMap<Rc<PathBuf>, Entry>,
     pub(crate) first_visible_column: Rc<PathBuf>,
-    pub(crate) required_columns: NonZeroUsize,
+    pub(crate) config: Rc<Config>,
     pub(crate) selected_column: usize,
 }
 
 impl State {
-    pub fn new(path: PathBuf, required_columns: NonZeroUsize) -> Result<Self> {
+    pub fn new(path: PathBuf, config: Config) -> Result<Self> {
+        let config = Rc::new(config);
+
         let first_visible_column = Rc::new(path.canonicalize()?);
-        let first_entry = Entry::new(first_visible_column.clone());
+        let first_entry = Entry::new(first_visible_column.clone(), config.clone());
         let mut ret = Self {
             entries: RungerMap::from_iter(std::iter::once((
                 first_visible_column.clone(),
                 first_entry,
             ))),
             first_visible_column,
-            required_columns,
+            config,
             selected_column: 0,
         };
 
@@ -43,13 +45,13 @@ impl State {
 
     fn create_entry_if_not_exists(&mut self, path: &Rc<PathBuf>) {
         if self.entry(path).is_none() {
-            let next_entry = Entry::new(path.clone());
+            let next_entry = Entry::new(path.clone(), self.config.clone());
             self.entries.insert(path.clone(), next_entry);
         }
     }
 
     pub(crate) fn try_open_selected_path(&mut self) -> Result<()> {
-        let mut required_depth = usize::from(self.required_columns) - self.selected_column;
+        let mut required_depth = usize::from(self.config.required_columns) - self.selected_column;
         let mut entry = self.selected_entry_mut();
 
         while required_depth > 0 {
@@ -73,7 +75,7 @@ impl State {
     pub fn move_right(&mut self) -> Result<bool> {
         let current_path = self.current_path().collect::<Vec<_>>();
 
-        if current_path.len() > self.required_columns.into() {
+        if current_path.len() > self.config.required_columns.into() {
             // current_path has more room then required_columns, so move the visible_columns
             // forward
             self.first_visible_column = current_path[1].path.clone();

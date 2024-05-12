@@ -31,7 +31,7 @@ impl<'a> Iterator for VisibleColumns<'a> {
     type Item = &'a Entry;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.depth == self.state.required_columns.into() {
+        if self.depth == self.state.config.required_columns.into() {
             return None;
         }
 
@@ -58,7 +58,7 @@ impl<'a> Iterator for VisibleColumnsMut<'a> {
     type Item = &'a mut Entry;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.depth == self.state.required_columns.into() {
+        if self.depth == self.state.config.required_columns.into() {
             return None;
         }
 

@@ -7,6 +7,7 @@ use crate::Result;
 #[derive(Debug, Clone)]
 pub struct Config {
     pub required_columns: NonZeroUsize,
+    pub column_margin: usize,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -20,6 +21,7 @@ impl Default for Config {
         Self {
             // SAFETY: it is not zero
             required_columns: unsafe { NonZeroUsize::new_unchecked(3) },
+            column_margin: 0,
         }
     }
 }
@@ -42,6 +44,10 @@ impl Config {
                     NonZeroUsize::new(val).ok_or(Error::ZeroRequiredColumns)?;
             }
             _ => {}
+        };
+
+        if let Some(val) = table.get::<_, Option<usize>>("column_margin")? {
+            config.column_margin = val;
         };
 
         Ok(config)
