@@ -1,4 +1,17 @@
-- more metadata in state::entry::OpenEntries::Entries
-- sorting
-- more colors
 - margin from top and bottom for selected column
+- command pallete
+- showing errors without failing
+- deleting file
+- creating file
+- renaming file
+- selecting multiple files
+- deleting selection
+- renaming selection
+- creating multiple files
+- handle opening files using mime types
+- hooks for events
+- sorting
+- sorting using custom functions
+- custom lua invocations via the `lua` command
+- option for opening default editor when usign `lua` command
+- themeing
