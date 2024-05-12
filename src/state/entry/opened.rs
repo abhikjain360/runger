@@ -95,7 +95,7 @@ impl Opened {
         true
     }
 
-    pub(crate) fn generate_list_state(&mut self, max_col_height: usize) -> ListState {
+    pub(crate) fn generate_list_state(&mut self, col_height: usize) -> ListState {
         let mut liststate = ListState::default();
         let entries_len = self.entries().map(|entries| entries.len()).unwrap_or(0);
 
@@ -110,12 +110,16 @@ impl Opened {
             // .. else if gap b/w offset and idx and greater than (col height - margin) then offset
             // should move down until it is is just equal to that ..
             else {
-                if selected.idx + self.config.column_margin >= selected.offset + max_col_height {
-                    selected.offset = selected.idx + self.config.column_margin - max_col_height + 1;
+                if selected.idx + self.config.column_margin >= selected.offset + col_height {
+                    selected.offset = selected.idx + self.config.column_margin - col_height + 1;
 
                     // .. unless we have already reached the end of entries (idx is on entries_len
                     // - 1), then we set it to entries_len - max_col_height - 1;
-                    selected.offset = selected.offset.min(entries_len - max_col_height);
+                    //
+                    // PANIC SAFETY: substraction here is fine because if the gap b/w idx and
+                    // offset is greater than col height then there must be more entries in the col
+                    // than col height;
+                    selected.offset = selected.offset.min(entries_len - col_height);
                 }
             }
 
