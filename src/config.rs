@@ -2,12 +2,11 @@ use std::{num::NonZeroUsize, path::Path};
 
 use mlua::{Lua, Table};
 
-use crate::{cli::LogLevel, Result};
+use crate::Result;
 
 #[derive(Debug, Clone)]
 pub struct Config {
     pub required_columns: NonZeroUsize,
-    pub log_level: LogLevel,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -21,7 +20,6 @@ impl Default for Config {
         Self {
             // SAFETY: it is not zero
             required_columns: unsafe { NonZeroUsize::new_unchecked(3) },
-            log_level: LogLevel::Error,
         }
     }
 }
