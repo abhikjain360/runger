@@ -52,7 +52,7 @@ impl Opened {
         selected.idx = idx;
         self.selected = Some(selected);
 
-        false
+        true
     }
 
     pub(crate) fn select_up(&mut self) -> bool {
