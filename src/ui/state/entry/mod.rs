@@ -8,10 +8,7 @@ use ratatui::{
     widgets::{Block, List, Paragraph, StatefulWidget, Widget},
 };
 
-use crate::{
-    state::{entry::EntryType, Entry},
-    ui::entry::opened::OpenedWidget,
-};
+use crate::ui::state::entry::opened::OpenedWidget;
 
 mod opened;
 
@@ -29,15 +26,15 @@ impl EntryWidget {
 }
 
 impl StatefulWidget for EntryWidget {
-    type State = Entry;
+    type State = crate::Entry;
 
-    fn render(self, area: Rect, buf: &mut Buffer, state: &mut Entry) {
+    fn render(self, area: Rect, buf: &mut Buffer, state: &mut crate::Entry) {
         match &mut state.ty {
-            EntryType::Opened(opened) => {
+            crate::EntryType::Opened(opened) => {
                 StatefulWidget::render(self.get_opened(state.path.clone()), area, buf, opened)
             }
-            EntryType::File => render_file(area, buf, state.path.clone()),
-            EntryType::Unopened => render_unopened(area, buf),
+            crate::EntryType::File => render_file(area, buf, state.path.clone()),
+            crate::EntryType::Unopened => render_unopened(area, buf),
         }
     }
 }

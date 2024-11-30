@@ -1,3 +1,6 @@
+- non-blocking tasks + thread pool
+- cancellable tasks
+- handle permission denied for opened entries
 - command pallete
 - showing errors without failing
 - deleting file

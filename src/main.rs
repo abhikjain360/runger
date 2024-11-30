@@ -4,8 +4,10 @@ use clap::{CommandFactory, Parser};
 use indexmap::IndexMap;
 use tracing::error;
 
+pub(crate) use crate::config::Config;
 pub(crate) use crate::error::*;
-use crate::{cli::Args, config::Config, state::State};
+pub(crate) use crate::state::entry::{Entry, EntryType};
+pub(crate) use crate::state::{Joiners, State};
 
 pub mod cli;
 pub mod config;
@@ -15,7 +17,7 @@ pub mod state;
 pub mod terminal;
 pub mod ui;
 
-type RungerMap<K, V> = IndexMap<K, V, ahash::random_state::RandomState>;
+type Map<K, V> = IndexMap<K, V, ahash::random_state::RandomState>;
 
 /// Initialises logging. The returned guard shouldn't be dropped otherwise there is guarantee that
 /// all logs will be flushed.
@@ -65,12 +67,12 @@ fn run(path: PathBuf, config_path: PathBuf) -> Result<()> {
 }
 
 fn main() {
-    let args = cli::Args::parse();
+    let args = crate::cli::Args::parse();
     args.validate();
 
     let path = args.path.unwrap_or_else(|| match env::current_dir() {
         Ok(path) => path,
-        Err(e) => Args::command()
+        Err(e) => crate::cli::Args::command()
             .error(
                 clap::error::ErrorKind::InvalidValue,
                 format!("unable to open given path: {e}"),
@@ -80,7 +82,7 @@ fn main() {
 
     let config_path = args.config.unwrap_or_else(|| {
         let Some(mut config_path) = dirs::config_dir() else {
-            Args::command()
+            crate::cli::Args::command()
                 .error(
                     clap::error::ErrorKind::InvalidValue,
                     "Unsupported OS: please set XDG_DATA_HOME env var or provide with config file path",
@@ -96,7 +98,7 @@ fn main() {
         init_logging(
             args.log_file.unwrap_or_else(|| {
                 let Some(mut data_dir) = dirs::data_dir() else {
-                    Args::command()
+                    crate::cli::Args::command()
                         .error(
                             clap::error::ErrorKind::InvalidValue,
                             "Unsupported OS: please set XDG_DATA_HOME env var or provide with log file path",

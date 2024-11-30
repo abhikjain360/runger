@@ -1,41 +1,43 @@
-#![allow(dead_code)]
-use std::{path::PathBuf, rc::Rc};
+use std::path::PathBuf;
+use std::rc::Rc;
 
-pub(crate) use crate::state::entry::Entry;
-use crate::{config::Config, Result, RungerMap};
-
-use self::entry::EntryType;
+pub(crate) use joiners::*;
 
 mod current_path;
 pub(crate) mod entry;
+mod joiners;
 mod visible_columns;
 
 /// # Invariants
 /// - assumes all paths all canonicalized and absolute
 /// - `first_visible_column` exists in `entries`
 /// - from `first_visible_column`, `selected_column` depth is valid
-#[derive(Debug, Clone)]
-pub struct State {
-    pub(crate) entries: RungerMap<Rc<PathBuf>, Entry>,
+pub(crate) struct State {
+    pub(crate) entries: crate::Map<Rc<PathBuf>, crate::Entry>,
     pub(crate) first_visible_column: Rc<PathBuf>,
-    pub(crate) config: Rc<Config>,
+    pub(crate) config: Rc<crate::Config>,
     pub(crate) selected_column: usize,
+    pub(crate) joiners: Joiners,
 }
 
 impl State {
-    pub fn new(path: PathBuf, config: Config) -> Result<Self> {
+    pub fn new(path: PathBuf, config: crate::Config) -> crate::Result<Self> {
         let config = Rc::new(config);
 
         let first_visible_column = Rc::new(path.canonicalize()?);
-        let first_entry = Entry::new(first_visible_column.clone(), config.clone());
+        let first_entry = crate::Entry::new(first_visible_column.clone(), config.clone());
+
+        let entries =
+            crate::Map::from_iter(std::iter::once((first_visible_column.clone(), first_entry)));
+
+        let joiners = Joiners::new()?;
+
         let mut ret = Self {
-            entries: RungerMap::from_iter(std::iter::once((
-                first_visible_column.clone(),
-                first_entry,
-            ))),
+            entries,
             first_visible_column,
             config,
             selected_column: 0,
+            joiners,
         };
 
         ret.try_open_selected_path()?;
@@ -45,12 +47,12 @@ impl State {
 
     fn create_entry_if_not_exists(&mut self, path: &Rc<PathBuf>) {
         if self.entry(path).is_none() {
-            let next_entry = Entry::new(path.clone(), self.config.clone());
+            let next_entry = crate::Entry::new(path.clone(), self.config.clone());
             self.entries.insert(path.clone(), next_entry);
         }
     }
 
-    pub(crate) fn try_open_selected_path(&mut self) -> Result<()> {
+    pub(crate) fn try_open_selected_path(&mut self) -> crate::Result<()> {
         let mut required_depth = usize::from(self.config.required_columns) - self.selected_column;
         let mut entry = self.selected_entry_mut();
 
@@ -72,7 +74,7 @@ impl State {
         Ok(())
     }
 
-    pub fn move_right(&mut self) -> Result<bool> {
+    pub fn move_right(&mut self) -> crate::Result<bool> {
         let current_path = self.current_path().collect::<Vec<_>>();
 
         if current_path.len() > self.config.required_columns.into() {
@@ -89,13 +91,13 @@ impl State {
         //
         // PANIC SAFETY: current_path should at least have self.first_visible_column
         match current_path.last().unwrap().ty {
-            EntryType::File if self.selected_column + 2 >= current_path.len() => {
+            crate::EntryType::File if self.selected_column + 2 >= current_path.len() => {
                 // we can not expand further as the current_path is at its end, as well as
                 // selected_column is also at the end of current_path
                 Ok(false)
             }
 
-            EntryType::File => {
+            crate::EntryType::File => {
                 // though we can not shift the visible_columns further left as we
                 // current_path.last == File, we can still move the selected_column one further
                 // as current_path has more to show
@@ -103,7 +105,7 @@ impl State {
                 Ok(true)
             }
 
-            EntryType::Opened(ref opened) if opened.entries.is_empty() => {
+            crate::EntryType::Opened(ref opened) if opened.entries.is_empty() => {
                 // we can not open further as the directory is empty, but we can check to see if we
                 // can move selected_column further
 
@@ -126,7 +128,7 @@ impl State {
         }
     }
 
-    pub fn move_left(&mut self) -> Result<bool> {
+    pub fn move_left(&mut self) -> crate::Result<bool> {
         // try to just move selected_column
         if self.selected_column > 0 {
             self.selected_column -= 1;
@@ -148,8 +150,8 @@ impl State {
         self.first_visible_column = parent_path;
         self.try_open_selected_path()?;
 
-        if let Entry {
-            ty: EntryType::Opened(opened),
+        if let crate::Entry {
+            ty: crate::EntryType::Opened(opened),
             ..
         } = self.selected_entry_mut()
         {
@@ -161,30 +163,29 @@ impl State {
         Ok(true)
     }
 
-    pub fn entry(&self, path: impl AsRef<PathBuf>) -> Option<&Entry> {
+    pub fn entry(&self, path: impl AsRef<PathBuf>) -> Option<&crate::Entry> {
         self.entries.get(path.as_ref())
     }
 
-    pub fn first_entry(&self) -> &Entry {
+    #[expect(dead_code)]
+    pub fn first_entry(&self) -> &crate::Entry {
         self.entries
             .get(&self.first_visible_column)
             .expect("self.first_visible_column does not exist")
     }
 
-    pub(crate) fn selected_entry(&self) -> &Entry {
-        self.visible_columns()
-            .nth(self.selected_column)
+    #[expect(dead_code)]
+    pub(crate) fn selected_entry(&self) -> &crate::Entry {
+        self.visible_columns_at(self.selected_column)
             .expect("self.selected_column does not exist")
     }
 
-    pub(crate) fn selected_entry_mut(&mut self) -> &mut Entry {
-        let selected_column = self.selected_column;
-        self.visible_columns_mut()
-            .nth(selected_column)
+    pub(crate) fn selected_entry_mut(&mut self) -> &mut crate::Entry {
+        self.visible_columns_mut_at(self.selected_column)
             .expect("self.selected_column does not exist")
     }
 
-    fn entry_mut(&mut self, path: impl AsRef<PathBuf>) -> Option<&mut Entry> {
+    fn entry_mut(&mut self, path: impl AsRef<PathBuf>) -> Option<&mut crate::Entry> {
         self.entries.get_mut(path.as_ref())
     }
 }

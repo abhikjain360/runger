@@ -4,7 +4,6 @@ use crate::state::State;
 
 use self::state::StateWidget;
 
-mod entry;
 mod state;
 
 impl State {

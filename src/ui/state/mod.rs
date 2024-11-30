@@ -1,3 +1,5 @@
+mod entry;
+
 use std::iter;
 
 use ratatui::{
@@ -6,7 +8,7 @@ use ratatui::{
     widgets::StatefulWidget,
 };
 
-use crate::{state::State, ui::entry::EntryWidget};
+use crate::{state::State, ui::state::entry::EntryWidget};
 
 pub(crate) struct StateWidget;
 

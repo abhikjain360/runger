@@ -10,7 +10,7 @@ use ratatui::{
 
 use crate::{
     state::entry::{opened::OpenedEntries, Opened},
-    ui::entry::{bordered_list, render_empty_dir},
+    ui::state::entry::{bordered_list, render_empty_dir},
 };
 
 pub struct OpenedWidget {
