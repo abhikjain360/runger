@@ -4,11 +4,7 @@ use crate::handle_events::StateChange;
 use crate::state::entry;
 
 impl crate::Entry {
-    pub(super) fn handle_event(
-        &mut self,
-        event: &Event,
-        _joiners: &mut crate::Joiners,
-    ) -> Option<StateChange> {
+    pub(super) fn handle_event(&mut self, event: &Event) -> Option<StateChange> {
         match &mut self.ty {
             crate::EntryType::Opened(opened) => opened.handle_event(event),
             _ => None,

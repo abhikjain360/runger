@@ -1,4 +1,5 @@
-use std::{path::PathBuf, rc::Rc};
+use std::path::PathBuf;
+use std::sync::Arc;
 
 impl crate::State {
     pub fn current_path(&self) -> CurrentPath {
@@ -12,7 +13,7 @@ impl crate::State {
 
 pub struct CurrentPath<'a> {
     pub(super) state: &'a crate::State,
-    next: Option<Rc<PathBuf>>,
+    next: Option<Arc<PathBuf>>,
 }
 
 impl<'a> Iterator for CurrentPath<'a> {

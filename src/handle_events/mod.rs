@@ -50,12 +50,9 @@ impl State {
     }
 
     fn handle_tui_event(&mut self, event: &Event) -> Result<Option<StateChange>> {
-        let joiners = unsafe {
-            std::mem::transmute::<&mut crate::Joiners, &mut crate::Joiners>(&mut self.joiners)
-        };
         let selected_entry = self.selected_entry_mut();
 
-        if let Some(change) = selected_entry.handle_event(event, joiners) {
+        if let Some(change) = selected_entry.handle_event(event) {
             return Ok(Some(change));
         };
 

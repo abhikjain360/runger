@@ -1,4 +1,5 @@
-use std::{path::PathBuf, rc::Rc};
+use std::path::PathBuf;
+use std::sync::Arc;
 
 use ratatui::{
     buffer::Buffer,
@@ -15,7 +16,7 @@ use crate::{
 
 pub struct OpenedWidget {
     pub(super) selected: bool,
-    pub(super) path: Rc<PathBuf>,
+    pub(super) path: Arc<PathBuf>,
 }
 
 impl StatefulWidget for OpenedWidget {
@@ -42,7 +43,7 @@ impl StatefulWidget for OpenedWidget {
     }
 }
 
-fn path_formatting(path: &Rc<PathBuf>) -> Option<Text> {
+fn path_formatting(path: &Arc<PathBuf>) -> Option<Text> {
     let file_name = path.file_name()?.to_string_lossy().into_owned();
 
     let mut text = Text::from(file_name);

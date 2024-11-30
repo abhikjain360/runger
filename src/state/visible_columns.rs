@@ -1,4 +1,5 @@
-use std::{path::PathBuf, rc::Rc};
+use std::path::PathBuf;
+use std::sync::Arc;
 
 impl crate::State {
     pub(crate) fn visible_columns_mut(&mut self) -> VisibleColumnsMut {
@@ -49,7 +50,7 @@ impl crate::State {
 
 pub(crate) struct VisibleColumnsMut<'a> {
     state: &'a mut crate::State,
-    next: Option<Rc<PathBuf>>,
+    next: Option<Arc<PathBuf>>,
     depth: usize,
 }
 

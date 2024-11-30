@@ -1,7 +1,8 @@
-use std::fs;
 use std::io;
 
-pub(crate) type ReadDirJoiner = tokio::task::JoinSet<io::Result<fs::ReadDir>>;
+pub(crate) use read_dir::ReadDirJoiner;
+
+mod read_dir;
 
 pub(crate) struct Joiners {
     pub(crate) read_dir_joiners: ReadDirJoiner,
@@ -12,7 +13,9 @@ impl Joiners {
     pub(super) fn new() -> io::Result<Self> {
         Ok(Self {
             read_dir_joiners: ReadDirJoiner::new(),
-            runtime: tokio::runtime::Builder::new_current_thread().build()?,
+            runtime: tokio::runtime::Builder::new_current_thread()
+                .enable_time()
+                .build()?,
         })
     }
 

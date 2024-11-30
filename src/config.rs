@@ -5,6 +5,7 @@ use mlua::{Lua, Table};
 use crate::Result;
 
 pub struct Config {
+    /// The number of columns that are required to be visible.
     pub required_columns: NonZeroUsize,
     pub column_margin: usize,
 }
@@ -36,7 +37,7 @@ impl Config {
         let lua = Lua::new();
         let table: Table = lua.load(path.as_ref()).eval()?;
 
-        match table.get::<_, Option<usize>>("required_columns")? {
+        match table.get::<Option<usize>>("required_columns")? {
             Some(0) => return Err(Error::ZeroRequiredColumns.into()),
             Some(val) => {
                 config.required_columns =
@@ -45,7 +46,7 @@ impl Config {
             _ => {}
         };
 
-        if let Some(val) = table.get::<_, Option<usize>>("column_margin")? {
+        if let Some(val) = table.get::<Option<usize>>("column_margin")? {
             config.column_margin = val;
         };
 

@@ -1,4 +1,6 @@
-use std::{path::PathBuf, rc::Rc};
+use std::path::PathBuf;
+use std::rc::Rc;
+use std::sync::Arc;
 
 use ratatui::widgets::ListState;
 
@@ -19,24 +21,24 @@ pub enum OpenedEntries {
     #[expect(dead_code)]
     PermissionDenied,
     // TODO: add more metadata to entries, eg: dir vs file vs symlink vs executable
-    Entries(Vec<Rc<PathBuf>>),
+    Entries(Vec<Arc<PathBuf>>),
 }
 
 impl Opened {
-    pub(crate) fn entries(&self) -> Option<&[Rc<PathBuf>]> {
+    pub(crate) fn entries(&self) -> Option<&[Arc<PathBuf>]> {
         if let OpenedEntries::Entries(entries) = &self.entries {
             return Some(entries);
         }
         None
     }
 
-    pub(crate) fn selected_entry(&self) -> Option<&Rc<PathBuf>> {
+    pub(crate) fn selected_entry(&self) -> Option<&Arc<PathBuf>> {
         let selected = self.selected.as_ref()?;
         self.entries().map(|entries| &entries[selected.idx])
     }
 
     /// Returns true if the path is found and set as `selected`.
-    pub(crate) fn set_selected_entry(&mut self, path: &Rc<PathBuf>) -> bool {
+    pub(crate) fn set_selected_entry(&mut self, path: &Arc<PathBuf>) -> bool {
         let Some(idx) = self.entries().and_then(|entries| {
             entries
                 .iter()

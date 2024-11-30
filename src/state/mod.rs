@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 use std::rc::Rc;
+use std::sync::Arc;
 
 pub(crate) use joiners::*;
 
@@ -13,9 +14,10 @@ mod visible_columns;
 /// - `first_visible_column` exists in `entries`
 /// - from `first_visible_column`, `selected_column` depth is valid
 pub(crate) struct State {
-    pub(crate) entries: crate::Map<Rc<PathBuf>, crate::Entry>,
-    pub(crate) first_visible_column: Rc<PathBuf>,
+    pub(crate) entries: crate::Map<Arc<PathBuf>, crate::Entry>,
+    pub(crate) first_visible_column: Arc<PathBuf>,
     pub(crate) config: Rc<crate::Config>,
+    /// The column that is currently selected from the visible columns.
     pub(crate) selected_column: usize,
     pub(crate) joiners: Joiners,
 }
@@ -24,7 +26,7 @@ impl State {
     pub fn new(path: PathBuf, config: crate::Config) -> crate::Result<Self> {
         let config = Rc::new(config);
 
-        let first_visible_column = Rc::new(path.canonicalize()?);
+        let first_visible_column = Arc::new(path.canonicalize()?);
         let first_entry = crate::Entry::new(first_visible_column.clone(), config.clone());
 
         let entries =
@@ -45,7 +47,7 @@ impl State {
         Ok(ret)
     }
 
-    fn create_entry_if_not_exists(&mut self, path: &Rc<PathBuf>) {
+    fn create_entry_if_not_exists(&mut self, path: &Arc<PathBuf>) {
         if self.entry(path).is_none() {
             let next_entry = crate::Entry::new(path.clone(), self.config.clone());
             self.entries.insert(path.clone(), next_entry);
@@ -53,10 +55,10 @@ impl State {
     }
 
     pub(crate) fn try_open_selected_path(&mut self) -> crate::Result<()> {
-        let mut required_depth = usize::from(self.config.required_columns) - self.selected_column;
+        let required_depth = usize::from(self.config.required_columns) - self.selected_column;
         let mut entry = self.selected_entry_mut();
 
-        while required_depth > 0 {
+        for _ in 0..required_depth {
             let Some(next_path) = entry.try_open()?.and_then(|opened| opened.selected_entry())
             else {
                 break;
@@ -67,8 +69,6 @@ impl State {
 
             // SAFETY: we just inserted it in
             entry = self.entry_mut(next_path).unwrap();
-
-            required_depth -= 1;
         }
 
         Ok(())
@@ -141,7 +141,7 @@ impl State {
             return Ok(false);
         };
         let child_path = self.first_visible_column.clone();
-        let parent_path = Rc::new(parent_path.to_path_buf());
+        let parent_path = Arc::new(parent_path.to_path_buf());
 
         // create an unopened entry for the parent path if there is none
         self.create_entry_if_not_exists(&parent_path);

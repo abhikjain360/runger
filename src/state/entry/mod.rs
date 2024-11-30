@@ -1,4 +1,8 @@
-use std::{fs, io, path::PathBuf, rc::Rc};
+use std::fs;
+use std::io;
+use std::path::PathBuf;
+use std::rc::Rc;
+use std::sync::Arc;
 
 use crate::{
     config::Config,
@@ -9,20 +13,26 @@ use crate::{
 pub mod opened;
 pub use opened::Opened;
 
-pub enum EntryType {
+pub(crate) enum EntryType {
     Opened(Opened),
     File,
     Unopened,
 }
 
 pub struct Entry {
-    pub path: Rc<PathBuf>,
-    pub ty: EntryType,
-    pub config: Rc<Config>,
+    pub(crate) path: Arc<PathBuf>,
+    pub(crate) ty: EntryType,
+    pub(crate) config: Rc<Config>,
+}
+
+pub(crate) enum TryOpenResult<'a> {
+    File,
+    Opened(&'a Opened),
+    Waiting,
 }
 
 impl Entry {
-    pub(crate) fn new(path: Rc<PathBuf>, config: Rc<Config>) -> Self {
+    pub(crate) fn new(path: Arc<PathBuf>, config: Rc<Config>) -> Self {
         let mut ret = Self {
             path: path.clone(),
             ty: EntryType::File,
@@ -47,7 +57,7 @@ impl Entry {
         };
 
         let mut entries = entries
-            .map(|entry_res| Ok(Rc::new(entry_res?.path().to_path_buf())))
+            .map(|entry_res| Ok(Arc::new(entry_res?.path().to_path_buf())))
             .collect::<Result<Vec<_>>>()?;
         entries.sort();
 
@@ -60,33 +70,19 @@ impl Entry {
         self.try_open()
     }
 
-    #[expect(dead_code)]
+    #[allow(dead_code)]
     pub(crate) fn try_open_async(
         &mut self,
-        _joiner: &mut crate::state::ReadDirJoiner,
-    ) -> Result<Option<&Opened>> {
+        joiner: &mut crate::state::ReadDirJoiner,
+    ) -> TryOpenResult<'_> {
         match self.ty {
-            EntryType::File => return Ok(None),
-            EntryType::Opened(ref mut opened) => return Ok(Some(opened)),
+            EntryType::File => return TryOpenResult::File,
+            EntryType::Opened(ref mut opened) => return TryOpenResult::Opened(opened),
             EntryType::Unopened => {}
         };
 
-        let entries = match fs::read_dir(self.path.as_ref()) {
-            Err(e) if e.kind() == io::ErrorKind::PermissionDenied => return Ok(None),
-            res => res?,
-        };
+        joiner.spawn(self.path.clone());
 
-        let mut entries = entries
-            .map(|entry_res| Ok(Rc::new(entry_res?.path().to_path_buf())))
-            .collect::<Result<Vec<_>>>()?;
-        entries.sort();
-
-        self.ty = EntryType::Opened(Opened {
-            selected: entries.first().map(|_| Selected::new(0, 0)),
-            entries: OpenedEntries::Entries(entries),
-            config: self.config.clone(),
-        });
-
-        self.try_open()
+        TryOpenResult::Waiting
     }
 }

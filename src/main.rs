@@ -7,7 +7,7 @@ use tracing::error;
 pub(crate) use crate::config::Config;
 pub(crate) use crate::error::*;
 pub(crate) use crate::state::entry::{Entry, EntryType};
-pub(crate) use crate::state::{Joiners, State};
+pub(crate) use crate::state::State;
 
 pub mod cli;
 pub mod config;

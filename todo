@@ -16,4 +16,6 @@
 - sorting using custom functions
 - custom lua invocations via the `lua` command
 - option for opening default editor when usign `lua` command
+- visible columns as a lua function with state as an argument
 - themeing
+- minimal vim-like editor

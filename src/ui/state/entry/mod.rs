@@ -1,4 +1,5 @@
-use std::{path::PathBuf, rc::Rc};
+use std::path::PathBuf;
+use std::sync::Arc;
 
 use ratatui::{
     buffer::Buffer,
@@ -17,7 +18,7 @@ pub struct EntryWidget {
 }
 
 impl EntryWidget {
-    fn get_opened(&self, path: Rc<PathBuf>) -> OpenedWidget {
+    fn get_opened(&self, path: Arc<PathBuf>) -> OpenedWidget {
         OpenedWidget {
             selected: self.selected,
             path,
@@ -39,7 +40,7 @@ impl StatefulWidget for EntryWidget {
     }
 }
 
-fn render_file(area: Rect, buf: &mut Buffer, path: Rc<PathBuf>) {
+fn render_file(area: Rect, buf: &mut Buffer, path: Arc<PathBuf>) {
     let para = Paragraph::new(format!("file: {}", path.to_string_lossy())).block(Block::bordered());
     Widget::render(para, area, buf)
 }
@@ -49,7 +50,7 @@ fn render_unopened(area: Rect, buf: &mut Buffer) {
     Widget::render(para, area, buf)
 }
 
-fn render_empty_dir(area: Rect, buf: &mut Buffer, path: Rc<PathBuf>) {
+fn render_empty_dir(area: Rect, buf: &mut Buffer, path: Arc<PathBuf>) {
     let para =
         Paragraph::new(format!("empty dir: {}", path.to_string_lossy())).block(Block::bordered());
     Widget::render(para, area, buf)
