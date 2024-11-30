@@ -15,6 +15,7 @@ mlua = { version = "0.9.6", features = ["lua54"] }
 ratatui = { version = "0.26.1", features = ["unstable-widget-ref"] }
 strum = { version = "0.26.2", features = ["derive"] }
 thiserror = "1.0.58"
+tokio = { version = "1.41.1", features = ["fs", "macros", "rt", "time"] }
 tracing = "0.1.40"
 tracing-appender = "0.2.3"
 tracing-subscriber = "0.3.18"
