@@ -4,21 +4,19 @@ use ratatui::widgets::ListState;
 
 use crate::config::Config;
 
-#[derive(Debug, Clone)]
 pub struct Opened {
     pub(crate) entries: OpenedEntries,
     pub(crate) selected: Option<Selected>,
     pub(crate) config: Rc<Config>,
 }
 
-#[derive(Debug, Clone)]
 pub struct Selected {
     idx: usize,
     offset: usize,
 }
 
-#[derive(Debug, Clone)]
 pub enum OpenedEntries {
+    #[expect(dead_code)]
     PermissionDenied,
     // TODO: add more metadata to entries, eg: dir vs file vs symlink vs executable
     Entries(Vec<Rc<PathBuf>>),

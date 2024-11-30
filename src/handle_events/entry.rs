@@ -1,23 +1,22 @@
 use crossterm::event::{Event, KeyCode, KeyEvent};
 
-use crate::{
-    handle_events::StateChange,
-    state::{
-        entry::{EntryType, Opened},
-        Entry,
-    },
-};
+use crate::handle_events::StateChange;
+use crate::state::entry;
 
-impl Entry {
-    pub(super) fn handle_event(&mut self, event: &Event) -> Option<StateChange> {
+impl crate::Entry {
+    pub(super) fn handle_event(
+        &mut self,
+        event: &Event,
+        _joiners: &mut crate::Joiners,
+    ) -> Option<StateChange> {
         match &mut self.ty {
-            EntryType::Opened(opened) => opened.handle_event(event),
+            crate::EntryType::Opened(opened) => opened.handle_event(event),
             _ => None,
         }
     }
 }
 
-impl Opened {
+impl entry::Opened {
     fn handle_event(&mut self, event: &Event) -> Option<StateChange> {
         match event {
             Event::Key(key) => self.handle_key_event(key),
@@ -38,10 +37,10 @@ impl Opened {
     }
 
     fn select_up_state_change(&mut self) -> Option<StateChange> {
-        self.select_up().then_some(StateChange::ReevalOpenedPath)
+        self.select_up().then_some(StateChange::ReEvalOpenedPath)
     }
 
     fn select_down_state_change(&mut self) -> Option<StateChange> {
-        self.select_down().then_some(StateChange::ReevalOpenedPath)
+        self.select_down().then_some(StateChange::ReEvalOpenedPath)
     }
 }

@@ -9,14 +9,12 @@ use crate::{
 pub mod opened;
 pub use opened::Opened;
 
-#[derive(Debug, Clone)]
 pub enum EntryType {
     Opened(Opened),
     File,
     Unopened,
 }
 
-#[derive(Debug, Clone)]
 pub struct Entry {
     pub path: Rc<PathBuf>,
     pub ty: EntryType,

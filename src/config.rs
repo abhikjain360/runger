@@ -4,7 +4,6 @@ use mlua::{Lua, Table};
 
 use crate::Result;
 
-#[derive(Debug, Clone)]
 pub struct Config {
     pub required_columns: NonZeroUsize,
     pub column_margin: usize,
