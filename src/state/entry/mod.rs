@@ -44,32 +44,6 @@ impl Entry {
         ret
     }
 
-    // pub(crate) fn try_open(&mut self) -> Result<Option<&Opened>> {
-    //     match self.ty {
-    //         EntryType::File => return Ok(None),
-    //         EntryType::Opened(ref mut opened) => return Ok(Some(opened)),
-    //         EntryType::Unopened => {}
-    //     };
-    //
-    //     let entries = match fs::read_dir(self.path.as_ref()) {
-    //         Err(e) if e.kind() == io::ErrorKind::PermissionDenied => return Ok(None),
-    //         res => res?,
-    //     };
-    //
-    //     let mut entries = entries
-    //         .map(|entry_res| Ok(Arc::new(entry_res?.path().to_path_buf())))
-    //         .collect::<Result<Vec<_>>>()?;
-    //     entries.sort();
-    //
-    //     self.ty = EntryType::Opened(Opened {
-    //         selected: entries.first().map(|_| Selected::new(0, 0)),
-    //         entries: OpenedEntries::Entries(entries),
-    //         config: self.config.clone(),
-    //     });
-    //
-    //     self.try_open()
-    // }
-
     pub(crate) fn try_open(
         &mut self,
         joiner: &mut crate::state::ReadDirJoiner,

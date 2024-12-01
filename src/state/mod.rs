@@ -56,26 +56,6 @@ impl State {
         }
     }
 
-    // pub(crate) fn try_open_selected_path(&mut self) -> crate::Result<()> {
-    //     let required_depth = usize::from(self.config.required_columns) - self.selected_column;
-    //     let mut entry = self.selected_entry_mut();
-    //
-    //     for _ in 0..required_depth {
-    //         let Some(next_path) = entry.try_open()?.and_then(|opened| opened.selected_entry())
-    //         else {
-    //             break;
-    //         };
-    //         let next_path = next_path.clone();
-    //
-    //         self.create_entry_if_not_exists(&next_path);
-    //
-    //         // SAFETY: we just inserted it in
-    //         entry = self.entry_mut(next_path).unwrap();
-    //     }
-    //
-    //     Ok(())
-    // }
-
     pub(crate) fn try_open_selected_path(&mut self) -> crate::Result<TryOpen<()>> {
         let required_depth = usize::from(self.config.required_columns) - self.selected_column;
 
