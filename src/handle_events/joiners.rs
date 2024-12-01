@@ -37,7 +37,7 @@ impl crate::State {
             crate::state::ReadDirResultKind::Ok(entries) => {
                 crate::Entry::opened(result.path.clone(), entries, self.config.clone())
             }
-            _ => todo!(),
+            crate::state::ReadDirResultKind::Err(e) => return Err(e),
         };
 
         self.entries.insert(result.path, entry);

@@ -19,7 +19,6 @@ pub(crate) struct ReadDirResult {
 
 pub(crate) enum ReadDirResultKind {
     Ok(Vec<Arc<PathBuf>>),
-    #[expect(dead_code)]
     Err(io::Error),
     PermissionDenied,
 }
