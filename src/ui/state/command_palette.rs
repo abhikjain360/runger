@@ -27,6 +27,10 @@ impl StatefulWidget for CommandPaletteWidget {
                 let input = format!(":{}", input);
                 Paragraph::new(input).render(area, buf);
             }
+            CommandPalette::Command(command) => {
+                let input = format!(":{:?}", command);
+                Paragraph::new(input).render(area, buf);
+            }
         }
     }
 }

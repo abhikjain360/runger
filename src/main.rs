@@ -1,14 +1,16 @@
-use std::time::{Duration, Instant};
-use std::{env, path::PathBuf};
+use std::env;
+use std::path::PathBuf;
+use std::time::Duration;
 
 use clap::{CommandFactory, Parser};
 use indexmap::IndexMap;
-use state::CommandPalette;
 use tracing::error;
 
 pub(crate) use crate::config::Config;
 pub(crate) use crate::error::*;
 pub(crate) use crate::state::entry::{Entry, EntryType};
+#[expect(unused_imports)]
+pub(crate) use crate::state::Command;
 pub(crate) use crate::state::State;
 
 pub mod cli;
@@ -45,8 +47,16 @@ pub fn init_logging(mut log_file_path: PathBuf, log_level: cli::LogLevel) -> Res
     // log to file
     let logfile = tracing_appender::rolling::never(log_dir_path, log_file_name);
 
+    #[cfg(not(debug_assertions))]
     tracing_subscriber::fmt()
         .with_max_level(log_level)
+        .with_writer(logfile)
+        .init();
+
+    #[cfg(debug_assertions)]
+    tracing_subscriber::fmt()
+        .with_max_level(log_level)
+        .with_span_events(tracing_subscriber::fmt::format::FmtSpan::ENTER)
         .with_writer(logfile)
         .init();
 
@@ -66,11 +76,8 @@ fn run(path: PathBuf, config_path: PathBuf) -> Result<()> {
             Ok(true) => break,
             Ok(false) => {}
             Err(e) => {
-                state.command_palette = CommandPalette::Error {
-                    error: e,
-                    // TODO: make show_error_duration configurable
-                    show_until: Instant::now() + Duration::from_secs(5),
-                }
+                // TODO: make show_error_duration configurable
+                state.command_palette.set_error(e, Duration::from_secs(5));
             }
         }
 

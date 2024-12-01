@@ -2,12 +2,12 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
 
-pub(crate) use command_palette::CommandPalette;
-use entry::TryOpen;
-pub(crate) use joiners::*;
+pub(crate) use crate::state::command::*;
+pub(crate) use crate::state::command_palette::CommandPalette;
+pub(crate) use crate::state::joiners::*;
 
+mod command;
 mod command_palette;
-mod current_path;
 pub(crate) mod entry;
 mod joiners;
 mod visible_columns;
@@ -16,6 +16,7 @@ mod visible_columns;
 /// - assumes all paths all canonicalized and absolute
 /// - `first_visible_column` exists in `entries`
 /// - from `first_visible_column`, `selected_column` depth is valid
+/// - `first_visible_column` is there in `entries`
 #[cfg_attr(debug_assertions, derive(Debug))]
 pub(crate) struct State {
     pub(crate) entries: crate::Map<Arc<PathBuf>, crate::Entry>,
@@ -28,7 +29,7 @@ pub(crate) struct State {
 }
 
 impl State {
-    pub fn new(path: PathBuf, config: crate::Config) -> crate::Result<Self> {
+    pub(crate) fn new(path: PathBuf, config: crate::Config) -> crate::Result<Self> {
         let config = Rc::new(config);
 
         let first_visible_column = Arc::new(path.canonicalize()?);
@@ -48,7 +49,7 @@ impl State {
             command_palette: CommandPalette::Empty,
         };
 
-        ret.try_open_selected_path()?;
+        ret.try_open_selected_path();
 
         Ok(ret)
     }
@@ -60,104 +61,118 @@ impl State {
         }
     }
 
-    pub(crate) fn try_open_selected_path(&mut self) -> crate::Result<TryOpen<()>> {
+    /// Returns `true` if path is opened.
+    pub(crate) fn try_open_selected_path(&mut self) -> bool {
         let required_depth = usize::from(self.config.required_columns) - self.selected_column;
 
         // SAFETY: we do not borrow self.joiners.read_dir_joiners again
         let joiner =
-            unsafe { std::mem::transmute::<&mut _, &mut _>(&mut self.joiners.read_dir_joiners) };
+            unsafe { std::mem::transmute::<&mut _, &mut _>(&mut self.joiners.read_dir_joiner) };
         let mut entry = self.selected_entry_mut();
 
         for _ in 0..required_depth {
-            let Some(next_path) = (match entry.try_open(joiner) {
-                TryOpen::Opened(opened) => opened.selected_entry(),
-                TryOpen::Waiting => return Ok(TryOpen::Waiting),
-                TryOpen::File => return Ok(TryOpen::File),
-                TryOpen::PermissionDenied => return Ok(TryOpen::PermissionDenied),
-            }) else {
-                break;
-            };
+            if entry.is_unopened() {
+                entry.try_open(joiner);
+                return false;
+            }
 
-            let next_path = next_path.clone();
+            let Some(next_path) = entry
+                .get_opened()
+                .and_then(|opened| opened.selected_entry())
+                .cloned()
+            else {
+                return false;
+            };
 
             self.create_entry_if_not_exists(&next_path);
 
-            // SAFETY: we just inserted it in
-            entry = self.entry_mut(next_path).unwrap();
+            #[cfg(debug_assertions)]
+            {
+                entry = self.entry_mut(next_path).unwrap();
+            }
+
+            #[cfg(not(debug_assertions))]
+            {
+                // SAFETY: we just inserted it in
+                entry = unsafe { self.entry_mut(next_path).unwrap_unchecked() };
+            }
         }
 
-        Ok(TryOpen::Opened(()))
+        true
     }
 
-    pub fn move_right(&mut self) -> crate::Result<bool> {
-        let current_path = self.current_path().collect::<Vec<_>>();
+    /// Helper function for `move_right`. **DO NOT CALL DIRECTLY**, it might panic.
+    // TODO: move this to a separate crate so that it can not be called directly
+    fn move_right_inner(&mut self) -> Option<Arc<PathBuf>> {
+        let selected_entry = self.selected_entry();
 
-        if current_path.len() > self.config.required_columns.into() {
-            // current_path has more room then required_columns, so move the visible_columns
-            // forward
-            self.first_visible_column = current_path[1].path.clone();
-            return Ok(true);
-        }
+        // move to right if opened and has a selected_entry
+        match &selected_entry.ty {
+            crate::EntryType::Opened(opened) => {
+                if let Some(next_path) = opened.selected_entry().cloned() {
+                    self.create_entry_if_not_exists(&next_path);
+                    self.try_open_selected_path();
 
-        // current path ran out of things to show for all the required_columns, show we try to:
-        //   1. extend the current path, or
-        //   2. move the selected_column
-        // in that order
-        //
-        // PANIC SAFETY: current_path should at least have self.first_visible_column
-        match current_path.last().unwrap().ty {
-            crate::EntryType::File if self.selected_column + 2 >= current_path.len() => {
-                // we can not expand further as the current_path is at its end, as well as
-                // selected_column is also at the end of current_path
-                Ok(false)
-            }
-
-            crate::EntryType::File => {
-                // though we can not shift the visible_columns further left as we
-                // current_path.last == File, we can still move the selected_column one further
-                // as current_path has more to show
-                self.selected_column += 1;
-                Ok(true)
-            }
-
-            crate::EntryType::Opened(ref opened) if opened.entries.is_empty() => {
-                // we can not open further as the directory is empty, but we can check to see if we
-                // can move selected_column further
-
-                if self.selected_column + 2 >= current_path.len() {
-                    return Ok(false);
+                    return Some(next_path);
                 }
 
-                self.selected_column += 1;
-                Ok(true)
+                tracing::error!("no selected entry even after State.entry_at_depth check");
+                None
+            }
+
+            crate::EntryType::Unopened => {
+                tracing::error!("encountered unopened entry even after State.entry_at_depth check");
+                let path = selected_entry.path.clone();
+                self.joiners.read_dir_joiner.spawn(path);
+                None
             }
 
             _ => {
-                // current_path.len < required_columns and current_path.last is either:
-                // - unopened dir, or
-                // - opened dir which is not empty
-                // so we can try opening the selected path further and retry
-                match self.try_open_selected_path()? {
-                    TryOpen::Opened(_) => self.move_right(),
-                    _ => Ok(false),
-                }
+                tracing::error!(
+                    "encountered !opened entry type even after State.entry_at_depth check"
+                );
+                None
             }
         }
     }
 
-    pub fn move_left(&mut self) -> crate::Result<bool> {
+    /// Returns true if we moved right.
+    pub(crate) fn move_right(&mut self) -> bool {
+        let required_columns = usize::from(self.config.required_columns);
+        match self.entry_at_depth(required_columns + 1) {
+            // current_path has more columns than required_columns, we shift the visible_columns
+            Ok(_) => {
+                if let Some(next_start) = self.move_right_inner() {
+                    self.first_visible_column = next_start;
+                    return true;
+                };
+                false
+            }
+            // if depth > selected_column + 2, we can not shift the visible_columns to right,
+            // so we just move the selected_column isntead.
+            // if the entry is unopened, we just spawn a read_dir, and will handle the IO event
+            // later.
+            Err((entry, depth)) if depth > self.selected_column + 2 || entry.is_unopened() => {
+                _ = self.move_right_inner();
+                self.selected_column += 1;
+                true
+            }
+            Err(_) => false,
+        }
+    }
+
+    pub(crate) fn move_left(&mut self) -> bool {
         // try to just move selected_column
         if self.selected_column > 0 {
             self.selected_column -= 1;
-            return Ok(true);
+            return true;
         }
         // otherwise move the visible_columns back
 
         let Some(parent_path) = self.first_visible_column.parent() else {
             // parent_path does not exist
-            return Ok(false);
+            return false;
         };
-        let child_path = self.first_visible_column.clone();
         let parent_path = Arc::new(parent_path.to_path_buf());
 
         // create an unopened entry for the parent path if there is none
@@ -165,44 +180,110 @@ impl State {
 
         // try to open parent path
         self.first_visible_column = parent_path;
-        self.try_open_selected_path()?;
+        self.try_open_selected_path();
 
-        if let crate::Entry {
-            ty: crate::EntryType::Opened(opened),
-            ..
-        } = self.selected_entry_mut()
-        {
-            if !opened.set_selected_entry(&child_path) {
-                tracing::warn!("unable to set the selected entry in parent column");
-            }
-        }
+        // TODO: find a way to set parent entry's selected_entry to child_path
 
-        Ok(true)
+        true
     }
 
-    pub fn entry(&self, path: impl AsRef<PathBuf>) -> Option<&crate::Entry> {
+    // TODO: support deleting multiple entries
+    pub(crate) fn delete_path(&mut self, path: impl AsRef<PathBuf>) {
+        self.joiners
+            .delete_joiner
+            .spawn(Arc::new(path.as_ref().to_path_buf()));
+
+        self.delete_path_entry(path);
+    }
+
+    fn delete_path_entry(&mut self, path: impl AsRef<PathBuf>) {
+        let Some(entry) = self.entries.swap_remove(path.as_ref()) else {
+            return;
+        };
+
+        if let crate::EntryType::Opened(opened) = entry.ty {
+            for entry in opened.entries {
+                self.delete_path_entry(entry);
+            }
+        }
+    }
+
+    pub(crate) fn entry(&self, path: impl AsRef<PathBuf>) -> Option<&crate::Entry> {
         self.entries.get(path.as_ref())
     }
 
-    #[expect(dead_code)]
-    pub fn first_entry(&self) -> &crate::Entry {
-        self.entries
-            .get(&self.first_visible_column)
-            .expect("self.first_visible_column does not exist")
+    pub(crate) fn first_entry(&self) -> &crate::Entry {
+        let entry = self.entries.get(&self.first_visible_column);
+
+        #[cfg(debug_assertions)]
+        {
+            entry.expect("self.first_visible_column does not exist")
+        }
+
+        #[cfg(not(debug_assertions))]
+        unsafe {
+            // SAFETY: self.first_visible_column is always there
+            entry.unwrap_unchecked()
+        }
     }
 
-    #[expect(dead_code)]
     pub(crate) fn selected_entry(&self) -> &crate::Entry {
-        self.visible_columns_at(self.selected_column)
-            .expect("self.selected_column does not exist")
+        #[cfg(debug_assertions)]
+        {
+            self.visible_columns_at(self.selected_column)
+                .expect("self.selected_column does not exist")
+        }
+
+        #[cfg(not(debug_assertions))]
+        unsafe {
+            // SAFETY: self.selected_column is always valid
+            self.visible_columns_at(self.selected_column)
+                .unwrap_unchecked()
+        }
     }
 
     pub(crate) fn selected_entry_mut(&mut self) -> &mut crate::Entry {
-        self.visible_columns_mut_at(self.selected_column)
-            .expect("self.selected_column does not exist")
+        #[cfg(debug_assertions)]
+        {
+            self.visible_columns_mut_at(self.selected_column)
+                .expect("self.selected_column does not exist")
+        }
+
+        #[cfg(not(debug_assertions))]
+        unsafe {
+            // SAFETY: self.selected_column is always valid
+            self.visible_columns_mut_at(self.selected_column)
+                .unwrap_unchecked()
+        }
     }
 
     fn entry_mut(&mut self, path: impl AsRef<PathBuf>) -> Option<&mut crate::Entry> {
         self.entries.get_mut(path.as_ref())
+    }
+
+    /// Returns the entry at the given depth, or the last entry with the depth reached if the depth
+    /// provided is greater than the number of required columns. Follows the selected_entry at each
+    /// column.
+    ///
+    /// Does not attempt to open any entries.
+    pub(crate) fn entry_at_depth(
+        &self,
+        depth: usize,
+    ) -> Result<&crate::Entry, (&crate::Entry, usize)> {
+        let mut current_entry = self.first_entry();
+
+        for current_depth in 1..=depth {
+            match &current_entry.ty {
+                crate::EntryType::Opened(opened) => {
+                    current_entry = opened
+                        .selected_entry()
+                        .and_then(|entry| self.entry(entry))
+                        .ok_or((current_entry, current_depth))?;
+                }
+                _ => return Err((current_entry, current_depth)),
+            }
+        }
+
+        Ok(current_entry)
     }
 }

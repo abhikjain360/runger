@@ -7,10 +7,12 @@ pub enum Error {
     Io(#[from] std::io::Error),
     #[error("CLI Error: {0}")]
     Cli(#[from] crate::cli::Error),
-    #[error("Config Error: Lua: {0}")]
+    #[error("Lua Error: {0}")]
     Lua(#[from] mlua::Error),
     #[error("Config Error: {0}")]
     Config(#[from] crate::config::Error),
+    #[error("Command Error: {0}")]
+    Command(#[from] crate::state::CommandError),
     #[cfg(debug_assertions)]
     #[error("random error")]
     Random,

@@ -9,6 +9,7 @@ use crate::config::Config;
 #[cfg_attr(debug_assertions, derive(Debug))]
 pub struct Opened {
     pub(crate) entries: Vec<Arc<PathBuf>>,
+    // TODO: support multiple selection
     pub(crate) selected: Option<Selected>,
     pub(crate) config: Rc<Config>,
 }
@@ -23,24 +24,6 @@ impl Opened {
     pub(crate) fn selected_entry(&self) -> Option<&Arc<PathBuf>> {
         let selected = self.selected.as_ref()?;
         Some(&self.entries[selected.idx])
-    }
-
-    /// Returns true if the path is found and set as `selected`.
-    pub(crate) fn set_selected_entry(&mut self, path: &Arc<PathBuf>) -> bool {
-        let Some(idx) = self
-            .entries
-            .iter()
-            .enumerate()
-            .find_map(|(idx, entry)| (entry == path).then_some(idx))
-        else {
-            return false;
-        };
-
-        let mut selected = self.selected.take().unwrap_or_else(|| Selected::new(0, 0));
-        selected.idx = idx;
-        self.selected = Some(selected);
-
-        true
     }
 
     pub(crate) fn select_up(&mut self) -> bool {

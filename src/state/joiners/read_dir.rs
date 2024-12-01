@@ -9,6 +9,7 @@ use tokio_stream::StreamExt;
 
 #[cfg_attr(debug_assertions, derive(Debug))]
 pub(crate) struct ReadDirJoiner {
+    // TODO: remove boxed
     inner: FuturesUnordered<BoxFuture<'static, ReadDirResult>>,
 }
 
@@ -21,6 +22,7 @@ pub(crate) enum ReadDirResultKind {
     Ok(Vec<Arc<PathBuf>>),
     Err(io::Error),
     PermissionDenied,
+    NotADirectory,
 }
 
 impl ReadDirJoiner {
@@ -41,10 +43,15 @@ impl ReadDirJoiner {
                 let read_dir_result = tokio::fs::read_dir(path.as_ref()).await;
                 let read_dir = match read_dir_result {
                     Ok(read_dir) => read_dir,
-                    Err(e) if e.kind() == io::ErrorKind::PermissionDenied => {
-                        return ReadDirResult::permission_denied(path);
-                    }
-                    Err(e) => return ReadDirResult::err(path, e),
+                    Err(e) => match e.kind() {
+                        io::ErrorKind::PermissionDenied => {
+                            return ReadDirResult::permission_denied(path);
+                        }
+                        io::ErrorKind::NotADirectory => {
+                            return ReadDirResult::not_a_directory(path);
+                        }
+                        _ => return ReadDirResult::err(path, e),
+                    },
                 };
                 let stream = ReadDirStream::new(read_dir);
 
@@ -83,6 +90,13 @@ impl ReadDirResult {
         Self {
             path,
             kind: ReadDirResultKind::PermissionDenied,
+        }
+    }
+
+    fn not_a_directory(path: Arc<PathBuf>) -> Self {
+        Self {
+            path,
+            kind: ReadDirResultKind::NotADirectory,
         }
     }
 

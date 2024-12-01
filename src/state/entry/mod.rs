@@ -25,13 +25,6 @@ pub struct Entry {
     pub(crate) ty: EntryType,
 }
 
-pub(crate) enum TryOpen<T> {
-    File,
-    Opened(T),
-    Waiting,
-    PermissionDenied,
-}
-
 impl Entry {
     pub(crate) fn new(path: Arc<PathBuf>) -> Self {
         let mut ret = Self {
@@ -44,23 +37,19 @@ impl Entry {
         ret
     }
 
-    pub(crate) fn try_open(
-        &mut self,
-        joiner: &mut crate::state::ReadDirJoiner,
-    ) -> TryOpen<&'_ Opened> {
-        match self.ty {
-            EntryType::File => return TryOpen::File,
-            EntryType::PermissionDenied => return TryOpen::PermissionDenied,
-            EntryType::Opened(ref mut opened) => return TryOpen::Opened(opened),
-            EntryType::Waiting => {}
-            EntryType::Unopened => {}
-        };
+    #[tracing::instrument(level = "debug", skip(self, joiner))]
+    pub(crate) fn try_open(&mut self, joiner: &mut crate::state::ReadDirJoiner) {
+        if self.is_unopened() {
+            joiner.spawn(self.path.clone());
+            self.ty = EntryType::Waiting;
+        }
+    }
 
-        joiner.spawn(self.path.clone());
-        tracing::debug!("spawned read_dir for {:?}", self.path);
-        self.ty = EntryType::Waiting;
-
-        TryOpen::Waiting
+    pub(crate) fn get_opened(&self) -> Option<&Opened> {
+        match &self.ty {
+            EntryType::Opened(opened) => Some(opened),
+            _ => None,
+        }
     }
 
     pub(crate) fn opened(
@@ -84,5 +73,16 @@ impl Entry {
             path,
             ty: EntryType::PermissionDenied,
         }
+    }
+
+    pub(crate) fn file(path: Arc<PathBuf>) -> Self {
+        Self {
+            path,
+            ty: EntryType::File,
+        }
+    }
+
+    pub(crate) fn is_unopened(&self) -> bool {
+        matches!(self.ty, EntryType::Unopened)
     }
 }

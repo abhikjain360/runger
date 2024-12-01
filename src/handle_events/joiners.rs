@@ -14,7 +14,7 @@ impl crate::State {
 
         joiners.runtime.block_on(async {
             tokio::select! {
-                join_result_opt = joiners.read_dir_joiners.join_next() => {
+                join_result_opt = joiners.read_dir_joiner.join_next() => {
                     let Some(join_result) = join_result_opt else {
                         return Ok(None);
                     };
@@ -33,6 +33,9 @@ impl crate::State {
         let entry = match result.kind {
             crate::state::ReadDirResultKind::PermissionDenied => {
                 crate::Entry::permission_denied(result.path.clone())
+            }
+            crate::state::ReadDirResultKind::NotADirectory => {
+                crate::Entry::file(result.path.clone())
             }
             crate::state::ReadDirResultKind::Ok(entries) => {
                 crate::Entry::opened(result.path.clone(), entries, self.config.clone())
