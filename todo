@@ -1,6 +1,3 @@
-- non-blocking tasks + thread pool
-- cancellable tasks
-- handle permission denied for opened entries
 - command pallete
 - showing errors without failing
 - deleting file
@@ -18,4 +15,6 @@
 - option for opening default editor when usign `lua` command
 - visible columns as a lua function with state as an argument
 - themeing
+- cancellable tasks
 - minimal vim-like editor
+- feature flags
