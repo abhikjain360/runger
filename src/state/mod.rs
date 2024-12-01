@@ -89,6 +89,7 @@ impl State {
                 TryOpen::Opened(opened) => opened.selected_entry(),
                 TryOpen::Waiting => return Ok(TryOpen::Waiting),
                 TryOpen::File => return Ok(TryOpen::File),
+                TryOpen::PermissionDenied => return Ok(TryOpen::PermissionDenied),
             }) else {
                 break;
             };
@@ -154,8 +155,7 @@ impl State {
                 // so we can try opening the selected path further and retry
                 match self.try_open_selected_path()? {
                     TryOpen::Opened(_) => self.move_right(),
-                    TryOpen::Waiting => Ok(false),
-                    TryOpen::File => Ok(false),
+                    _ => Ok(false),
                 }
             }
         }

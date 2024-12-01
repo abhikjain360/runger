@@ -3,10 +3,10 @@ use std::sync::Arc;
 
 use ratatui::{
     buffer::Buffer,
-    layout::Rect,
+    layout::{Constraint, Layout, Rect},
     style::{Style, Stylize},
     symbols,
-    widgets::{Block, List, Paragraph, StatefulWidget, Widget},
+    widgets::{Block, Borders, List, Paragraph, StatefulWidget, Widget},
 };
 
 use crate::ui::state::entry::opened::OpenedWidget;
@@ -36,6 +36,7 @@ impl StatefulWidget for EntryWidget {
             }
             crate::EntryType::File => render_file(area, buf, state.path.clone()),
             crate::EntryType::Unopened | crate::EntryType::Waiting => render_unopened(area, buf),
+            crate::EntryType::PermissionDenied => render_permission_denied(area, buf),
         }
     }
 }
@@ -46,13 +47,29 @@ fn render_file(area: Rect, buf: &mut Buffer, path: Arc<PathBuf>) {
 }
 
 fn render_unopened(area: Rect, buf: &mut Buffer) {
-    let para = Paragraph::new("loading".to_string()).block(Block::bordered());
-    Widget::render(para, area, buf)
+    let border = Block::default().borders(Borders::ALL);
+    let inner = border.inner(area);
+    Widget::render(border, area, buf);
+
+    let rects = Layout::vertical([
+        Constraint::Min(1),
+        Constraint::Length(1),
+        Constraint::Min(1),
+    ])
+    .split(inner);
+
+    let para = Paragraph::new("loading".to_string()).centered();
+    Widget::render(para, rects[1], buf)
 }
 
 fn render_empty_dir(area: Rect, buf: &mut Buffer, path: Arc<PathBuf>) {
     let para =
         Paragraph::new(format!("empty dir: {}", path.to_string_lossy())).block(Block::bordered());
+    Widget::render(para, area, buf)
+}
+
+fn render_permission_denied(area: Rect, buf: &mut Buffer) {
+    let para = Paragraph::new("🔒 Permission Denied").block(Block::bordered());
     Widget::render(para, area, buf)
 }
 

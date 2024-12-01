@@ -8,7 +8,7 @@ use crate::config::Config;
 
 #[cfg_attr(debug_assertions, derive(Debug))]
 pub struct Opened {
-    pub(crate) entries: OpenedEntries,
+    pub(crate) entries: Vec<Arc<PathBuf>>,
     pub(crate) selected: Option<Selected>,
     pub(crate) config: Rc<Config>,
 }
@@ -19,35 +19,20 @@ pub struct Selected {
     offset: usize,
 }
 
-#[cfg_attr(debug_assertions, derive(Debug))]
-pub enum OpenedEntries {
-    #[expect(dead_code)]
-    PermissionDenied,
-    // TODO: add more metadata to entries, eg: dir vs file vs symlink vs executable
-    Entries(Vec<Arc<PathBuf>>),
-}
-
 impl Opened {
-    pub(crate) fn entries(&self) -> Option<&[Arc<PathBuf>]> {
-        if let OpenedEntries::Entries(entries) = &self.entries {
-            return Some(entries);
-        }
-        None
-    }
-
     pub(crate) fn selected_entry(&self) -> Option<&Arc<PathBuf>> {
         let selected = self.selected.as_ref()?;
-        self.entries().map(|entries| &entries[selected.idx])
+        Some(&self.entries[selected.idx])
     }
 
     /// Returns true if the path is found and set as `selected`.
     pub(crate) fn set_selected_entry(&mut self, path: &Arc<PathBuf>) -> bool {
-        let Some(idx) = self.entries().and_then(|entries| {
-            entries
-                .iter()
-                .enumerate()
-                .find_map(|(idx, entry)| (entry == path).then_some(idx))
-        }) else {
+        let Some(idx) = self
+            .entries
+            .iter()
+            .enumerate()
+            .find_map(|(idx, entry)| (entry == path).then_some(idx))
+        else {
             return false;
         };
 
@@ -59,18 +44,18 @@ impl Opened {
     }
 
     pub(crate) fn select_up(&mut self) -> bool {
-        let (Some(mut selected), Some(entries)) = (self.selected.take(), self.entries()) else {
+        let Some(mut selected) = self.selected.take() else {
             return false;
         };
 
-        if entries.is_empty() {
+        if self.entries.is_empty() {
             return false;
         }
 
         if selected.idx > 0 {
             selected.idx -= 1;
         } else {
-            selected.idx = entries.len() - 1;
+            selected.idx = self.entries.len() - 1;
         }
 
         self.selected = Some(selected);
@@ -79,15 +64,15 @@ impl Opened {
     }
 
     pub(crate) fn select_down(&mut self) -> bool {
-        let (Some(mut selected), Some(entries)) = (self.selected.take(), self.entries()) else {
+        let Some(mut selected) = self.selected.take() else {
             return false;
         };
 
-        if entries.is_empty() {
+        if self.entries.is_empty() {
             return false;
         }
 
-        if selected.idx < entries.len() - 1 {
+        if selected.idx < self.entries.len() - 1 {
             selected.idx += 1;
         } else {
             selected.idx = 0;
@@ -100,7 +85,7 @@ impl Opened {
 
     pub(crate) fn generate_list_state(&mut self, col_height: usize) -> ListState {
         let mut liststate = ListState::default();
-        let entries_len = self.entries().map(|entries| entries.len()).unwrap_or(0);
+        let entries_len = self.entries.len();
 
         if let Some(selected) = self.selected.as_mut() {
             let top_margin = self.config.column_margin.min(selected.idx);
@@ -130,15 +115,6 @@ impl Opened {
         }
 
         liststate
-    }
-}
-
-impl OpenedEntries {
-    pub fn is_empty(&self) -> bool {
-        match self {
-            OpenedEntries::PermissionDenied => false,
-            OpenedEntries::Entries(entries) => entries.is_empty(),
-        }
     }
 }
 

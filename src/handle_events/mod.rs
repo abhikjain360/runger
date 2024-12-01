@@ -22,7 +22,9 @@ impl State {
 
         // poll events until MAX_EVENT_POLL_TIME is reached
         while elapsed < MAX_EVENT_POLL_TIME {
-            if event::poll(MAX_EVENT_POLL_TIME - elapsed)? {
+            tracing::debug!("polling TUI events");
+            if event::poll(MAX_EVENT_POLL_TIME / 2)? {
+                tracing::debug!("reading TUI events");
                 let event = event::read()?;
 
                 // handle TUI events first for smoother UX
@@ -33,17 +35,20 @@ impl State {
             }
 
             elapsed = start.elapsed();
+            tracing::debug!("done handling TUI events");
 
             // return if no time left for IO events
             if elapsed >= MAX_EVENT_POLL_TIME {
                 return Ok(false);
             }
 
-            if let Some(change) = self.poll_io_event(MAX_EVENT_POLL_TIME - elapsed)? {
+            tracing::debug!("polling IO events");
+            if let Some(change) = self.poll_io_event(MAX_EVENT_POLL_TIME / 2)? {
                 let should_exit = self.handle_change_check_should_exit(change)?;
                 return Ok(should_exit);
             }
             elapsed = start.elapsed();
+            tracing::debug!("done handling IO events");
         }
 
         Ok(false)

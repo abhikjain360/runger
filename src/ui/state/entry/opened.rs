@@ -1,16 +1,10 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use ratatui::{
-    buffer::Buffer,
-    layout::Rect,
-    style::Stylize,
-    text::Text,
-    widgets::{Paragraph, StatefulWidget, Widget},
-};
+use ratatui::{buffer::Buffer, layout::Rect, style::Stylize, text::Text, widgets::StatefulWidget};
 
 use crate::{
-    state::entry::{opened::OpenedEntries, Opened},
+    state::entry::Opened,
     ui::state::entry::{bordered_list, render_empty_dir},
 };
 
@@ -25,20 +19,13 @@ impl StatefulWidget for OpenedWidget {
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Opened) {
         let mut list_state = state.generate_list_state(2.max(area.height as usize) - 2);
 
-        let entries = match &state.entries {
-            OpenedEntries::Entries(entries) if !entries.is_empty() => entries,
-            OpenedEntries::Entries(_) => {
-                render_empty_dir(area, buf, self.path.clone());
-                return;
-            }
-            OpenedEntries::PermissionDenied => {
-                let paragraph = Paragraph::new("🔒 Permission Denied");
-                Widget::render(paragraph, area, buf);
-                return;
-            }
-        };
+        if state.entries.is_empty() {
+            render_empty_dir(area, buf, self.path.clone());
+            return;
+        }
 
-        let list = bordered_list(self.selected).items(entries.iter().filter_map(path_formatting));
+        let list =
+            bordered_list(self.selected).items(state.entries.iter().filter_map(path_formatting));
         StatefulWidget::render(list, area, buf, &mut list_state);
     }
 }

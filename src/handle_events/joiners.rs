@@ -1,6 +1,4 @@
 use std::io;
-use std::path::PathBuf;
-use std::sync::Arc;
 use std::time::Duration;
 
 use crate::handle_events::StateChange;
@@ -20,9 +18,8 @@ impl crate::State {
                     let Some(join_result) = join_result_opt else {
                         return Ok(None);
                     };
-                    let (path, entries) = join_result?;
 
-                    self.handle_read_dir_event(path, entries);
+                    self.handle_read_dir_event(join_result)?;
 
                     Ok(Some(StateChange::ReEvalOpenedPath))
                 }
@@ -32,8 +29,18 @@ impl crate::State {
         })
     }
 
-    fn handle_read_dir_event(&mut self, path: Arc<PathBuf>, entries: Vec<Arc<PathBuf>>) {
-        let entry = crate::Entry::new_from_entries(path.clone(), entries, self.config.clone());
-        self.entries.insert(path, entry);
+    fn handle_read_dir_event(&mut self, result: crate::state::ReadDirResult) -> io::Result<()> {
+        let entry = match result.kind {
+            crate::state::ReadDirResultKind::PermissionDenied => {
+                crate::Entry::permission_denied(result.path.clone())
+            }
+            crate::state::ReadDirResultKind::Ok(entries) => {
+                crate::Entry::opened(result.path.clone(), entries, self.config.clone())
+            }
+            _ => todo!(),
+        };
+
+        self.entries.insert(result.path, entry);
+        Ok(())
     }
 }

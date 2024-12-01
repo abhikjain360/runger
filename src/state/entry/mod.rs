@@ -8,7 +8,7 @@ use std::sync::Arc;
 use crate::{config::Config, Result};
 
 pub mod opened;
-pub use opened::{Opened, OpenedEntries, Selected};
+pub use opened::{Opened, Selected};
 
 #[cfg_attr(debug_assertions, derive(Debug))]
 pub(crate) enum EntryType {
@@ -16,6 +16,7 @@ pub(crate) enum EntryType {
     File,
     Unopened,
     Waiting,
+    PermissionDenied,
 }
 
 #[cfg_attr(debug_assertions, derive(Debug))]
@@ -28,6 +29,7 @@ pub(crate) enum TryOpen<T> {
     File,
     Opened(T),
     Waiting,
+    PermissionDenied,
 }
 
 impl Entry {
@@ -74,6 +76,7 @@ impl Entry {
     ) -> TryOpen<&'_ Opened> {
         match self.ty {
             EntryType::File => return TryOpen::File,
+            EntryType::PermissionDenied => return TryOpen::PermissionDenied,
             EntryType::Opened(ref mut opened) => return TryOpen::Opened(opened),
             EntryType::Waiting => {}
             EntryType::Unopened => {}
@@ -86,7 +89,7 @@ impl Entry {
         TryOpen::Waiting
     }
 
-    pub(crate) fn new_from_entries(
+    pub(crate) fn opened(
         path: Arc<PathBuf>,
         mut entries: Vec<Arc<PathBuf>>,
         config: Rc<Config>,
@@ -95,10 +98,17 @@ impl Entry {
 
         let ty = EntryType::Opened(Opened {
             selected: entries.first().map(|_| Selected::new(0, 0)),
-            entries: OpenedEntries::Entries(entries),
+            entries,
             config: config.clone(),
         });
 
         Self { path, ty }
+    }
+
+    pub(crate) fn permission_denied(path: Arc<PathBuf>) -> Self {
+        Self {
+            path,
+            ty: EntryType::PermissionDenied,
+        }
     }
 }

@@ -1,6 +1,6 @@
 use std::io;
 
-pub(crate) use read_dir::ReadDirJoiner;
+pub(crate) use read_dir::*;
 
 mod read_dir;
 
