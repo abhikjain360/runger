@@ -2,9 +2,11 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
 
+pub(crate) use command_palette::CommandPalette;
 use entry::TryOpen;
 pub(crate) use joiners::*;
 
+mod command_palette;
 mod current_path;
 pub(crate) mod entry;
 mod joiners;
@@ -22,6 +24,7 @@ pub(crate) struct State {
     /// The column that is currently selected from the visible columns.
     pub(crate) selected_column: usize,
     pub(crate) joiners: Joiners,
+    pub(crate) command_palette: CommandPalette,
 }
 
 impl State {
@@ -42,6 +45,7 @@ impl State {
             config,
             selected_column: 0,
             joiners,
+            command_palette: CommandPalette::Empty,
         };
 
         ret.try_open_selected_path()?;

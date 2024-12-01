@@ -2,8 +2,12 @@ use std::time::{Duration, Instant};
 
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyModifiers};
 
-use crate::{state::State, Result};
+use crate::{
+    state::{CommandPalette, State},
+    Result,
+};
 
+mod command_palette;
 mod entry;
 mod joiners;
 
@@ -78,6 +82,10 @@ impl State {
             return Ok(None);
         }
 
+        if let Some(change) = self.command_palette.handle_key_event(key) {
+            return Ok(Some(change));
+        }
+
         let ret = match key.code {
             KeyCode::Esc | KeyCode::Char('q') => Some(StateChange::Exit),
 
@@ -88,6 +96,17 @@ impl State {
 
             KeyCode::Char('h') | KeyCode::Left => {
                 self.move_left()?;
+                Some(StateChange::NoActionRequired)
+            }
+
+            KeyCode::Char('@') => {
+                return Err(crate::Error::Random);
+            }
+
+            KeyCode::Char(';') => {
+                self.command_palette = CommandPalette::Typing {
+                    input: String::new(),
+                };
                 Some(StateChange::NoActionRequired)
             }
 

@@ -1,7 +1,9 @@
+use std::time::{Duration, Instant};
 use std::{env, path::PathBuf};
 
 use clap::{CommandFactory, Parser};
 use indexmap::IndexMap;
+use state::CommandPalette;
 use tracing::error;
 
 pub(crate) use crate::config::Config;
@@ -58,7 +60,20 @@ fn run(path: PathBuf, config_path: PathBuf) -> Result<()> {
 
     let mut terminal = terminal::init()?;
 
-    while !state.handle_events()? {
+    loop {
+        let res = state.handle_events();
+        match res {
+            Ok(true) => break,
+            Ok(false) => {}
+            Err(e) => {
+                state.command_palette = CommandPalette::Error {
+                    error: e,
+                    // TODO: make show_error_duration configurable
+                    show_until: Instant::now() + Duration::from_secs(5),
+                }
+            }
+        }
+
         terminal.draw(state.ui())?;
     }
 
