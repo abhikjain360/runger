@@ -201,6 +201,24 @@ impl State {
             return;
         };
 
+        if let Some(entry) = entry
+            .path
+            .parent()
+            .and_then(|path| self.entries.get_mut(&path.to_path_buf()))
+        {
+            if let crate::EntryType::Opened(opened) = &mut entry.ty {
+                if let Some(idx) = opened
+                    .entries
+                    .iter()
+                    .position(|e| e.as_ref() == path.as_ref())
+                {
+                    opened.entries.remove(idx);
+                } else {
+                    tracing::warn!("parent entry exists but does not have the child entry");
+                }
+            }
+        }
+
         if let crate::EntryType::Opened(opened) = entry.ty {
             for entry in opened.entries {
                 self.delete_path_entry(entry);

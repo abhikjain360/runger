@@ -14,12 +14,20 @@ impl crate::State {
 
         joiners.runtime.block_on(async {
             tokio::select! {
-                join_result_opt = joiners.read_dir_joiner.join_next() => {
-                    let Some(join_result) = join_result_opt else {
+                delete_res_opt = joiners.delete_joiner.join_next() => {
+                    let Some(_) = delete_res_opt else {
                         return Ok(None);
                     };
 
-                    self.handle_read_dir_event(join_result)?;
+                    Ok(Some(StateChange::NoActionRequired))
+                }
+
+                read_dir_res_opt = joiners.read_dir_joiner.join_next() => {
+                    let Some(read_dir) = read_dir_res_opt else {
+                        return Ok(None);
+                    };
+
+                    self.handle_read_dir_event(read_dir)?;
 
                     Ok(Some(StateChange::ReEvalOpenedPath))
                 }

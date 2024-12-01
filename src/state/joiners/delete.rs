@@ -46,4 +46,8 @@ impl DeleteJoiner {
             .boxed(),
         );
     }
+
+    pub(crate) async fn join_next(&mut self) -> Option<io::Result<()>> {
+        futures::StreamExt::next(&mut self.inner).await
+    }
 }
