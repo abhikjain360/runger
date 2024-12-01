@@ -99,6 +99,8 @@ impl State {
                 Some(StateChange::NoActionRequired)
             }
 
+            // just for testing
+            #[cfg(debug_assertions)]
             KeyCode::Char('@') => {
                 return Err(crate::Error::Random);
             }
