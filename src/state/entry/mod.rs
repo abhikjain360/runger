@@ -1,42 +1,40 @@
+#![allow(unused_imports)]
 use std::fs;
 use std::io;
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use crate::{
-    config::Config,
-    state::entry::opened::{OpenedEntries, Selected},
-    Result,
-};
+use crate::{config::Config, Result};
 
 pub mod opened;
-pub use opened::Opened;
+pub use opened::{Opened, OpenedEntries, Selected};
 
+#[cfg_attr(debug_assertions, derive(Debug))]
 pub(crate) enum EntryType {
     Opened(Opened),
     File,
     Unopened,
+    Waiting,
 }
 
+#[cfg_attr(debug_assertions, derive(Debug))]
 pub struct Entry {
     pub(crate) path: Arc<PathBuf>,
     pub(crate) ty: EntryType,
-    pub(crate) config: Rc<Config>,
 }
 
-pub(crate) enum TryOpenResult<'a> {
+pub(crate) enum TryOpen<T> {
     File,
-    Opened(&'a Opened),
+    Opened(T),
     Waiting,
 }
 
 impl Entry {
-    pub(crate) fn new(path: Arc<PathBuf>, config: Rc<Config>) -> Self {
+    pub(crate) fn new(path: Arc<PathBuf>) -> Self {
         let mut ret = Self {
             path: path.clone(),
             ty: EntryType::File,
-            config,
         };
         if path.is_dir() {
             ret.ty = EntryType::Unopened;
@@ -44,45 +42,63 @@ impl Entry {
         ret
     }
 
-    pub(crate) fn try_open(&mut self) -> Result<Option<&Opened>> {
-        match self.ty {
-            EntryType::File => return Ok(None),
-            EntryType::Opened(ref mut opened) => return Ok(Some(opened)),
-            EntryType::Unopened => {}
-        };
+    // pub(crate) fn try_open(&mut self) -> Result<Option<&Opened>> {
+    //     match self.ty {
+    //         EntryType::File => return Ok(None),
+    //         EntryType::Opened(ref mut opened) => return Ok(Some(opened)),
+    //         EntryType::Unopened => {}
+    //     };
+    //
+    //     let entries = match fs::read_dir(self.path.as_ref()) {
+    //         Err(e) if e.kind() == io::ErrorKind::PermissionDenied => return Ok(None),
+    //         res => res?,
+    //     };
+    //
+    //     let mut entries = entries
+    //         .map(|entry_res| Ok(Arc::new(entry_res?.path().to_path_buf())))
+    //         .collect::<Result<Vec<_>>>()?;
+    //     entries.sort();
+    //
+    //     self.ty = EntryType::Opened(Opened {
+    //         selected: entries.first().map(|_| Selected::new(0, 0)),
+    //         entries: OpenedEntries::Entries(entries),
+    //         config: self.config.clone(),
+    //     });
+    //
+    //     self.try_open()
+    // }
 
-        let entries = match fs::read_dir(self.path.as_ref()) {
-            Err(e) if e.kind() == io::ErrorKind::PermissionDenied => return Ok(None),
-            res => res?,
-        };
-
-        let mut entries = entries
-            .map(|entry_res| Ok(Arc::new(entry_res?.path().to_path_buf())))
-            .collect::<Result<Vec<_>>>()?;
-        entries.sort();
-
-        self.ty = EntryType::Opened(Opened {
-            selected: entries.first().map(|_| Selected::new(0, 0)),
-            entries: OpenedEntries::Entries(entries),
-            config: self.config.clone(),
-        });
-
-        self.try_open()
-    }
-
-    #[allow(dead_code)]
-    pub(crate) fn try_open_async(
+    pub(crate) fn try_open(
         &mut self,
         joiner: &mut crate::state::ReadDirJoiner,
-    ) -> TryOpenResult<'_> {
+    ) -> TryOpen<&'_ Opened> {
         match self.ty {
-            EntryType::File => return TryOpenResult::File,
-            EntryType::Opened(ref mut opened) => return TryOpenResult::Opened(opened),
+            EntryType::File => return TryOpen::File,
+            EntryType::Opened(ref mut opened) => return TryOpen::Opened(opened),
+            EntryType::Waiting => {}
             EntryType::Unopened => {}
         };
 
         joiner.spawn(self.path.clone());
+        tracing::debug!("spawned read_dir for {:?}", self.path);
+        self.ty = EntryType::Waiting;
 
-        TryOpenResult::Waiting
+        TryOpen::Waiting
+    }
+
+    pub(crate) fn new_from_entries(
+        path: Arc<PathBuf>,
+        mut entries: Vec<Arc<PathBuf>>,
+        config: Rc<Config>,
+    ) -> Self {
+        entries.sort();
+
+        let ty = EntryType::Opened(Opened {
+            selected: entries.first().map(|_| Selected::new(0, 0)),
+            entries: OpenedEntries::Entries(entries),
+            config: config.clone(),
+        });
+
+        Self { path, ty }
     }
 }

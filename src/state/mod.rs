@@ -2,6 +2,7 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
 
+use entry::TryOpen;
 pub(crate) use joiners::*;
 
 mod current_path;
@@ -13,6 +14,7 @@ mod visible_columns;
 /// - assumes all paths all canonicalized and absolute
 /// - `first_visible_column` exists in `entries`
 /// - from `first_visible_column`, `selected_column` depth is valid
+#[cfg_attr(debug_assertions, derive(Debug))]
 pub(crate) struct State {
     pub(crate) entries: crate::Map<Arc<PathBuf>, crate::Entry>,
     pub(crate) first_visible_column: Arc<PathBuf>,
@@ -27,7 +29,7 @@ impl State {
         let config = Rc::new(config);
 
         let first_visible_column = Arc::new(path.canonicalize()?);
-        let first_entry = crate::Entry::new(first_visible_column.clone(), config.clone());
+        let first_entry = crate::Entry::new(first_visible_column.clone());
 
         let entries =
             crate::Map::from_iter(std::iter::once((first_visible_column.clone(), first_entry)));
@@ -49,20 +51,48 @@ impl State {
 
     fn create_entry_if_not_exists(&mut self, path: &Arc<PathBuf>) {
         if self.entry(path).is_none() {
-            let next_entry = crate::Entry::new(path.clone(), self.config.clone());
+            let next_entry = crate::Entry::new(path.clone());
             self.entries.insert(path.clone(), next_entry);
         }
     }
 
-    pub(crate) fn try_open_selected_path(&mut self) -> crate::Result<()> {
+    // pub(crate) fn try_open_selected_path(&mut self) -> crate::Result<()> {
+    //     let required_depth = usize::from(self.config.required_columns) - self.selected_column;
+    //     let mut entry = self.selected_entry_mut();
+    //
+    //     for _ in 0..required_depth {
+    //         let Some(next_path) = entry.try_open()?.and_then(|opened| opened.selected_entry())
+    //         else {
+    //             break;
+    //         };
+    //         let next_path = next_path.clone();
+    //
+    //         self.create_entry_if_not_exists(&next_path);
+    //
+    //         // SAFETY: we just inserted it in
+    //         entry = self.entry_mut(next_path).unwrap();
+    //     }
+    //
+    //     Ok(())
+    // }
+
+    pub(crate) fn try_open_selected_path(&mut self) -> crate::Result<TryOpen<()>> {
         let required_depth = usize::from(self.config.required_columns) - self.selected_column;
+
+        // SAFETY: we do not borrow self.joiners.read_dir_joiners again
+        let joiner =
+            unsafe { std::mem::transmute::<&mut _, &mut _>(&mut self.joiners.read_dir_joiners) };
         let mut entry = self.selected_entry_mut();
 
         for _ in 0..required_depth {
-            let Some(next_path) = entry.try_open()?.and_then(|opened| opened.selected_entry())
-            else {
+            let Some(next_path) = (match entry.try_open(joiner) {
+                TryOpen::Opened(opened) => opened.selected_entry(),
+                TryOpen::Waiting => return Ok(TryOpen::Waiting),
+                TryOpen::File => return Ok(TryOpen::File),
+            }) else {
                 break;
             };
+
             let next_path = next_path.clone();
 
             self.create_entry_if_not_exists(&next_path);
@@ -71,7 +101,7 @@ impl State {
             entry = self.entry_mut(next_path).unwrap();
         }
 
-        Ok(())
+        Ok(TryOpen::Opened(()))
     }
 
     pub fn move_right(&mut self) -> crate::Result<bool> {
@@ -122,8 +152,11 @@ impl State {
                 // - unopened dir, or
                 // - opened dir which is not empty
                 // so we can try opening the selected path further and retry
-                self.try_open_selected_path()?;
-                self.move_right()
+                match self.try_open_selected_path()? {
+                    TryOpen::Opened(_) => self.move_right(),
+                    TryOpen::Waiting => Ok(false),
+                    TryOpen::File => Ok(false),
+                }
             }
         }
     }

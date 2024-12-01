@@ -6,17 +6,20 @@ use ratatui::widgets::ListState;
 
 use crate::config::Config;
 
+#[cfg_attr(debug_assertions, derive(Debug))]
 pub struct Opened {
     pub(crate) entries: OpenedEntries,
     pub(crate) selected: Option<Selected>,
     pub(crate) config: Rc<Config>,
 }
 
+#[cfg_attr(debug_assertions, derive(Debug))]
 pub struct Selected {
     idx: usize,
     offset: usize,
 }
 
+#[cfg_attr(debug_assertions, derive(Debug))]
 pub enum OpenedEntries {
     #[expect(dead_code)]
     PermissionDenied,

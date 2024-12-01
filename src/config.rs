@@ -4,6 +4,7 @@ use mlua::{Lua, Table};
 
 use crate::Result;
 
+#[cfg_attr(debug_assertions, derive(Debug))]
 pub struct Config {
     /// The number of columns that are required to be visible.
     pub required_columns: NonZeroUsize,

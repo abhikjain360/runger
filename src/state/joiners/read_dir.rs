@@ -1,15 +1,22 @@
-use std::{io, path::PathBuf, sync::Arc};
+use std::io;
+use std::path::PathBuf;
+use std::sync::Arc;
 
-type ReadDirJoinerInner = tokio::task::JoinSet<io::Result<(Arc<PathBuf>, tokio::fs::ReadDir)>>;
+use futures::future::{BoxFuture, FutureExt};
+use futures::stream::FuturesUnordered;
+use tokio_stream::wrappers::ReadDirStream;
+use tokio_stream::StreamExt;
 
+#[cfg_attr(debug_assertions, derive(Debug))]
 pub(crate) struct ReadDirJoiner {
-    inner: ReadDirJoinerInner,
+    #[allow(clippy::type_complexity)]
+    inner: FuturesUnordered<BoxFuture<'static, io::Result<(Arc<PathBuf>, Vec<Arc<PathBuf>>)>>>,
 }
 
 impl ReadDirJoiner {
     pub(crate) fn new() -> Self {
         Self {
-            inner: ReadDirJoinerInner::new(),
+            inner: FuturesUnordered::new(),
         }
     }
 
@@ -19,10 +26,25 @@ impl ReadDirJoiner {
     }
 
     pub(crate) fn spawn(&mut self, path: Arc<PathBuf>) {
-        self.inner.spawn(async move {
-            tokio::fs::read_dir(path.as_ref())
-                .await
-                .map(|read_dir| (path, read_dir))
-        });
+        self.inner.push(
+            async move {
+                let read_dir = tokio::fs::read_dir(path.as_ref()).await?;
+                let stream = ReadDirStream::new(read_dir);
+
+                let entries = stream
+                    .map(|entry_res| Ok(Arc::new(entry_res?.path().to_path_buf())))
+                    .collect::<io::Result<Vec<_>>>()
+                    .await?;
+
+                Ok((path, entries))
+            }
+            .boxed(),
+        );
+    }
+
+    pub(crate) async fn join_next(
+        &mut self,
+    ) -> Option<io::Result<(Arc<PathBuf>, Vec<Arc<PathBuf>>)>> {
+        futures::StreamExt::next(&mut self.inner).await
     }
 }

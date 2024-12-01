@@ -102,7 +102,9 @@ impl State {
 
     fn handle_change_check_should_exit(&mut self, change: StateChange) -> Result<bool> {
         match change {
-            StateChange::ReEvalOpenedPath => self.try_open_selected_path()?,
+            StateChange::ReEvalOpenedPath => {
+                self.try_open_selected_path()?;
+            }
             StateChange::Exit => return Ok(true),
             StateChange::NoActionRequired => {}
         }
