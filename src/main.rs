@@ -39,19 +39,13 @@ pub fn init_logging(mut log_file_path: PathBuf) -> Result<()> {
     // log to file
     let logfile = tracing_appender::rolling::never(log_dir_path, log_file_name);
 
-    #[cfg(not(debug_assertions))]
-    tracing_subscriber::fmt()
-        .with_max_level(log_level)
-        .with_writer(logfile)
-        .init();
-
-    #[cfg(debug_assertions)]
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::fmt::layer()
+                .pretty()
                 .with_span_events(tracing_subscriber::fmt::format::FmtSpan::ENTER)
                 .with_writer(logfile)
-                .with_filter(EnvFilter::from_default_env()), // .with_filter(LevelFilter::from_level(log_level)),
+                .with_filter(EnvFilter::from_default_env()),
         )
         .init();
 
