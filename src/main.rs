@@ -5,6 +5,8 @@ use std::time::Duration;
 use clap::{CommandFactory, Parser};
 use indexmap::IndexMap;
 use tracing::error;
+use tracing_subscriber::prelude::*;
+use tracing_subscriber::EnvFilter;
 
 pub(crate) use crate::config::Config;
 pub(crate) use crate::error::*;
@@ -23,7 +25,7 @@ type Map<K, V> = IndexMap<K, V, ahash::random_state::RandomState>;
 
 /// Initialises logging. The returned guard shouldn't be dropped otherwise there is guarantee that
 /// all logs will be flushed.
-pub fn init_logging(mut log_file_path: PathBuf, log_level: cli::LogLevel) -> Result<()> {
+pub fn init_logging(mut log_file_path: PathBuf) -> Result<()> {
     if log_file_path.is_dir() {
         return Err(cli::Error::LogFilePathIsDirectory(log_file_path).into());
     }
@@ -33,14 +35,6 @@ pub fn init_logging(mut log_file_path: PathBuf, log_level: cli::LogLevel) -> Res
         _ => return Err(cli::Error::InvalidLogFilePath(log_file_path).into()),
     };
     let log_dir_path = log_file_path;
-
-    let log_level = match log_level {
-        cli::LogLevel::Error => tracing::Level::ERROR,
-        cli::LogLevel::Warn => tracing::Level::WARN,
-        cli::LogLevel::Info => tracing::Level::INFO,
-        cli::LogLevel::Debug => tracing::Level::DEBUG,
-        cli::LogLevel::Trace => tracing::Level::TRACE,
-    };
 
     // log to file
     let logfile = tracing_appender::rolling::never(log_dir_path, log_file_name);
@@ -52,10 +46,13 @@ pub fn init_logging(mut log_file_path: PathBuf, log_level: cli::LogLevel) -> Res
         .init();
 
     #[cfg(debug_assertions)]
-    tracing_subscriber::fmt()
-        .with_max_level(log_level)
-        .with_span_events(tracing_subscriber::fmt::format::FmtSpan::ENTER)
-        .with_writer(logfile)
+    tracing_subscriber::registry()
+        .with(
+            tracing_subscriber::fmt::layer()
+                .with_span_events(tracing_subscriber::fmt::format::FmtSpan::ENTER)
+                .with_writer(logfile)
+                .with_filter(EnvFilter::from_default_env()), // .with_filter(LevelFilter::from_level(log_level)),
+        )
         .init();
 
     Ok(())
@@ -82,7 +79,10 @@ fn run(path: PathBuf, config_path: PathBuf) -> Result<()> {
         terminal.draw(state.ui())?;
     }
 
+    state.finish_pending_io_events()?;
+
     terminal::close(terminal)?;
+
     Ok(())
 }
 
@@ -129,7 +129,6 @@ fn main() {
                 data_dir.push("logs");
                 data_dir
             }),
-            args.log_level,
         )
         .expect("unable to init logging, exiting");
     }

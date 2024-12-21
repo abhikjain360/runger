@@ -4,10 +4,6 @@ use std::path::PathBuf;
 #[derive(Debug, Clone, clap::Parser)]
 #[command(version)]
 pub struct Args {
-    // The level of logs to log.
-    #[arg(short = 'l', long, default_value_t = LogLevel::Info, value_enum)]
-    pub log_level: LogLevel,
-
     // Location of log file.
     #[arg(long)]
     pub log_file: Option<PathBuf>,
@@ -22,18 +18,6 @@ pub struct Args {
 
     // Path from where to launch.
     pub path: Option<PathBuf>,
-}
-
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default, strum::EnumIter, clap::ValueEnum,
-)]
-pub enum LogLevel {
-    Error,
-    Warn,
-    #[default]
-    Info,
-    Debug,
-    Trace,
 }
 
 impl Args {
@@ -64,8 +48,6 @@ impl Args {
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum Error {
-    #[error("invalid log level \"{0}\", should be debug, info, warn or error")]
-    InvalidLogLevel(String),
     #[error("given path \"{0}\" for log file is a directory")]
     LogFilePathIsDirectory(PathBuf),
     #[error("given path \"{0}\" for log file is a invalid")]
