@@ -9,9 +9,7 @@ use tracing::error;
 pub(crate) use crate::config::Config;
 pub(crate) use crate::error::*;
 pub(crate) use crate::state::entry::{Entry, EntryType};
-#[expect(unused_imports)]
-pub(crate) use crate::state::Command;
-pub(crate) use crate::state::State;
+pub(crate) use crate::state::{Command, DeleteCommand, State};
 
 pub mod cli;
 pub mod config;

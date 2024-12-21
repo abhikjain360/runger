@@ -9,8 +9,7 @@ pub(crate) enum Command {
     Delete(DeleteCommand),
 }
 
-#[cfg_attr(debug_assertions, derive(Debug))]
-#[derive(thiserror::Error)]
+#[derive(Debug, thiserror::Error)]
 pub enum CommandError {
     #[error("Invalid command")]
     InvalidCommand,
@@ -51,5 +50,13 @@ impl State {
         }
 
         Ok(())
+    }
+}
+
+impl Command {
+    pub(crate) fn cursor_pos(&self) -> Option<u16> {
+        match self {
+            Self::Delete(delete) => delete.cursor_pos(),
+        }
     }
 }

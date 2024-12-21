@@ -5,6 +5,7 @@ use ratatui::prelude::*;
 use crate::ui::state::command_palette::CommandPaletteWidget;
 use crate::ui::state::entry::EntryWidget;
 
+mod command;
 mod command_palette;
 mod entry;
 
@@ -20,6 +21,7 @@ impl StatefulWidget for StateWidget {
                     Layout::vertical([Constraint::Min(3), Constraint::Length(1)]).split(area);
 
                 CommandPaletteWidget.render(layout[1], buf, &mut state.command_palette);
+                state.command_palette_row = layout[1].y;
 
                 layout[0]
             }

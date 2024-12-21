@@ -85,4 +85,9 @@ impl Entry {
     pub(crate) fn is_unopened(&self) -> bool {
         matches!(self.ty, EntryType::Unopened)
     }
+
+    #[expect(dead_code)]
+    pub(crate) fn is_opened(&self) -> bool {
+        matches!(self.ty, EntryType::Opened(_))
+    }
 }

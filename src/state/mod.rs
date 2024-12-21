@@ -26,6 +26,7 @@ pub(crate) struct State {
     pub(crate) selected_column: usize,
     pub(crate) joiners: Joiners,
     pub(crate) command_palette: CommandPalette,
+    pub(crate) command_palette_row: u16,
 }
 
 impl State {
@@ -47,6 +48,7 @@ impl State {
             selected_column: 0,
             joiners,
             command_palette: CommandPalette::Empty,
+            command_palette_row: 0,
         };
 
         ret.try_open_selected_path();
@@ -103,11 +105,17 @@ impl State {
 
     /// Helper function for `move_right`. **DO NOT CALL DIRECTLY**, it might panic.
     // TODO: move this to a separate crate so that it can not be called directly
-    fn move_right_inner(&mut self) -> Option<Arc<PathBuf>> {
-        let selected_entry = self.selected_entry();
+    fn get_next_visible_column(&mut self) -> Option<Arc<PathBuf>> {
+        let first_visible_entry = match self.visible_columns_at(0) {
+            Some(entry) => entry,
+            None => {
+                tracing::error!("no visible columns");
+                return None;
+            }
+        };
 
         // move to right if opened and has a selected_entry
-        match &selected_entry.ty {
+        match &first_visible_entry.ty {
             crate::EntryType::Opened(opened) => {
                 if let Some(next_path) = opened.selected_entry().cloned() {
                     self.create_entry_if_not_exists(&next_path);
@@ -122,7 +130,7 @@ impl State {
 
             crate::EntryType::Unopened => {
                 tracing::error!("encountered unopened entry even after State.entry_at_depth check");
-                let path = selected_entry.path.clone();
+                let path = first_visible_entry.path.clone();
                 self.joiners.read_dir_joiner.spawn(path);
                 None
             }
@@ -138,27 +146,67 @@ impl State {
 
     /// Returns true if we moved right.
     pub(crate) fn move_right(&mut self) -> bool {
-        let required_columns = usize::from(self.config.required_columns);
-        match self.entry_at_depth(required_columns + 1) {
-            // current_path has more columns than required_columns, we shift the visible_columns
+        match self.entry_at_depth(self.required_columns()) {
             Ok(_) => {
-                if let Some(next_start) = self.move_right_inner() {
+                if self.selected_column + 2 < self.required_columns() {
+                    self.selected_column += 1;
+                    return true;
+                }
+
+                if let Some(next_start) = self.get_next_visible_column() {
                     self.first_visible_column = next_start;
                     return true;
-                };
+                }
+
                 false
             }
-            // if depth > selected_column + 2, we can not shift the visible_columns to right,
-            // so we just move the selected_column isntead.
-            // if the entry is unopened, we just spawn a read_dir, and will handle the IO event
-            // later.
-            Err((entry, depth)) if depth > self.selected_column + 2 || entry.is_unopened() => {
-                _ = self.move_right_inner();
+            Err((_, depth)) if depth > self.selected_column + 2 => {
+                self.try_open_selected_path();
                 self.selected_column += 1;
                 true
             }
-            Err(_) => false,
+            Err(_) => {
+                self.try_open_selected_path();
+                false
+            }
         }
+
+        // match self.entry_at_depth(required_columns) {
+        //     // current path has more columns than required columns and the last entry is opened, so
+        //     // we can shift the visible columns.
+        //     Ok(entry) if entry.is_opened() => {
+        //         if let Some(next_start) = self.move_right_inner() {
+        //             self.first_visible_column = next_start;
+        //             return true;
+        //         };
+        //         false
+        //     }
+        //
+        //     // current path has more columns than required columns and the last entry is unopened,
+        //     // so we try to open the selected path but can not shift the visible columns. meanwhile
+        //     // we move the selected_column.
+        //     Ok(entry) if entry.is_unopened() => {
+        //         self.try_open_selected_path();
+        //         self.try_move_selected_column_right(required_columns)
+        //     }
+        //
+        //     // current path has more columns than required columns and the last entry is neither
+        //     // opened nor unopened, so we can not shift the visible columns. we just move the
+        //     // selected_column.
+        //     // TODO: handle the case when entry is still pending
+        //     Ok(_) => self.try_move_selected_column_right(required_columns),
+        //
+        //     // current path has less columns than required columns, so we can not shift the visible
+        //     // columns. we just move the selected_column.
+        //     Err((_, depth)) if depth > self.selected_column + 2 => {
+        //         self.try_move_selected_column_right(required_columns)
+        //     }
+        //
+        //     // current path has less columns than required columns, so we can not shift the visible
+        //     // columns. also depth is less than selected_column + 2, so we can not move the
+        //     // selected column either.
+        //     Err(_) => false,
+        // }
     }
 
     pub(crate) fn move_left(&mut self) -> bool {
@@ -303,5 +351,9 @@ impl State {
         }
 
         Ok(current_entry)
+    }
+
+    pub(crate) fn required_columns(&self) -> usize {
+        self.config.required_columns.get()
     }
 }

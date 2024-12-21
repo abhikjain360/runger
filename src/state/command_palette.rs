@@ -38,4 +38,12 @@ impl CommandPalette {
     pub(crate) fn set_delete_command_typing(&mut self, input: String) {
         *self = Self::Command(Command::Delete(DeleteCommand::Typing { input }));
     }
+
+    pub(crate) fn cursor_pos(&self) -> Option<u16> {
+        match self {
+            Self::Empty | Self::Error { .. } => None,
+            Self::Typing { input } => Some(input.len() as u16 + 1),
+            Self::Command(command) => command.cursor_pos(),
+        }
+    }
 }

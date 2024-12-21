@@ -29,7 +29,7 @@ impl State {
 
         // poll events until MAX_EVENT_POLL_TIME is reached
         while elapsed < MAX_EVENT_POLL_TIME {
-            if event::poll(MAX_EVENT_POLL_TIME / 2)? {
+            if event::poll(MAX_EVENT_POLL_TIME / 3)? {
                 let event = event::read()?;
 
                 // handle TUI events first for smoother UX
@@ -46,7 +46,7 @@ impl State {
                 return Ok(false);
             }
 
-            if let Some(change) = self.poll_io_event(MAX_EVENT_POLL_TIME / 2)? {
+            if let Some(change) = self.poll_io_event(MAX_EVENT_POLL_TIME / 3)? {
                 let should_exit = self.handle_change_check_should_exit(change)?;
                 return Ok(should_exit);
             }
@@ -57,16 +57,13 @@ impl State {
     }
 
     fn handle_tui_event(&mut self, event: &Event) -> Option<StateChange> {
-        let selected_entry = self.selected_entry_mut();
-
-        if let Some(change) = selected_entry.handle_event(event) {
-            return Some(change);
-        };
-
-        match event {
-            Event::Key(key) => self.handle_key_event(key),
-            _ => None,
+        if let Event::Key(key) = event {
+            if let Some(change) = self.handle_key_event(key) {
+                return Some(change);
+            }
         }
+
+        self.selected_entry_mut().handle_event(event)
     }
 
     fn handle_key_event(&mut self, key: &KeyEvent) -> Option<StateChange> {
