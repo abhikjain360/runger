@@ -6,7 +6,6 @@ pub(crate) use read_dir::*;
 mod delete;
 mod read_dir;
 
-#[cfg_attr(debug_assertions, derive(Debug))]
 pub(crate) struct Joiners {
     pub(crate) read_dir_joiner: ReadDirJoiner,
     pub(crate) delete_joiner: DeleteJoiner,

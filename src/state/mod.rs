@@ -17,7 +17,6 @@ mod visible_columns;
 /// - `first_visible_column` exists in `entries`
 /// - from `first_visible_column`, `selected_column` depth is valid
 /// - `first_visible_column` is there in `entries`
-#[cfg_attr(debug_assertions, derive(Debug))]
 pub(crate) struct State {
     pub(crate) entries: crate::Map<Arc<PathBuf>, crate::Entry>,
     pub(crate) first_visible_column: Arc<PathBuf>,

@@ -1,16 +1,13 @@
+use std::collections::VecDeque;
 use std::io;
 use std::path::PathBuf;
 use std::sync::Arc;
 
 use futures::future::{BoxFuture, FutureExt};
-use futures::stream::FuturesUnordered;
-use tokio_stream::wrappers::ReadDirStream;
-use tokio_stream::StreamExt;
 
-#[cfg_attr(debug_assertions, derive(Debug))]
 pub(crate) struct ReadDirJoiner {
     // TODO: remove boxed
-    inner: FuturesUnordered<BoxFuture<'static, ReadDirResult>>,
+    inner: VecDeque<BoxFuture<'static, ReadDirResult>>,
 }
 
 pub(crate) struct ReadDirResult {
@@ -28,7 +25,7 @@ pub(crate) enum ReadDirResultKind {
 impl ReadDirJoiner {
     pub(crate) fn new() -> Self {
         Self {
-            inner: FuturesUnordered::new(),
+            inner: VecDeque::new(),
         }
     }
 
@@ -37,11 +34,12 @@ impl ReadDirJoiner {
         self.inner.is_empty()
     }
 
+    #[tracing::instrument(level = "debug", skip(self))]
     pub(crate) fn spawn(&mut self, path: Arc<PathBuf>) {
-        self.inner.push(
+        self.inner.push_front(
             async move {
                 let read_dir_result = tokio::fs::read_dir(path.as_ref()).await;
-                let read_dir = match read_dir_result {
+                let mut read_dir = match read_dir_result {
                     Ok(read_dir) => read_dir,
                     Err(e) => match e.kind() {
                         io::ErrorKind::PermissionDenied => {
@@ -53,27 +51,24 @@ impl ReadDirJoiner {
                         _ => return ReadDirResult::err(path, e),
                     },
                 };
-                let stream = ReadDirStream::new(read_dir);
 
-                let entries_result = stream
-                    .map(|entry_res| {
-                        Ok(Arc::new(
-                            entry_res
-                                .inspect_err(|e| {
-                                    tracing::error!("unable to read dir entry {:?}: {e}", path)
-                                })?
-                                .path()
-                                .to_path_buf(),
-                        ))
-                    })
-                    .collect::<io::Result<Vec<_>>>()
-                    .await;
+                let mut entries = vec![];
 
-                let entries = match entries_result {
-                    Ok(entries) => entries,
-                    Err(e) => return ReadDirResult::err(path, e),
-                };
+                tracing::debug!("read dir entries 1");
+                while let Some(dir_entry) = match read_dir.next_entry().await {
+                    Ok(dir_entry) => dir_entry,
+                    Err(e) => {
+                        tracing::error!("unable to read dir entry {:?}: {e}", path);
+                        return ReadDirResult::err(path, e);
+                    }
+                } {
+                    tracing::debug!("read dir entries 2");
+                    let path = Arc::new(dir_entry.path().to_path_buf());
+                    entries.push(path.clone());
+                    tracing::debug!("read dir entries 3");
+                }
 
+                tracing::debug!("read dir entries 4");
                 ReadDirResult::ok(path, entries)
             }
             .boxed(),
@@ -81,7 +76,10 @@ impl ReadDirJoiner {
     }
 
     pub(crate) async fn join_next(&mut self) -> Option<ReadDirResult> {
-        futures::StreamExt::next(&mut self.inner).await
+        let first = self.inner.front_mut()?;
+        let ret = first.await;
+        self.inner.pop_front();
+        Some(ret)
     }
 }
 
