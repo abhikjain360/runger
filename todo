@@ -1,7 +1,12 @@
-- perf
-- deleting file
+- remove `StateChange`
+- disallow `config.required_columns < 2`
+- implement `Config::from_lua_table` and `Config::merge`
+- don't fail on invalid config
+- add `EntryType::Deleting` and use that instead of removing the entry before the delete is done
 - creating file
+  - this should block
 - renaming file
+  - this should block
 - selecting multiple files
 - deleting selection
 - renaming selection
@@ -14,7 +19,6 @@
 - option for opening default editor when usign `lua` command
 - visible columns as a lua function with state as an argument
 - themeing
-- cancellable tasks
 - minimal vim-like editor
 - feature flags
 - custom keybindings

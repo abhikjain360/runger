@@ -80,7 +80,8 @@ impl crate::State {
             }
             PollResult::ReadDir(res) => {
                 self.handle_read_dir_event(res)?;
-                Ok(Some(StateChange::ReEvalOpenedPath))
+                self.try_open_selected_path();
+                Ok(Some(StateChange::NoActionRequired))
             }
             PollResult::Timeout => Ok(None),
         }

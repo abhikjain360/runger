@@ -55,11 +55,10 @@ impl State {
         Ok(ret)
     }
 
-    fn create_entry_if_not_exists(&mut self, path: &Arc<PathBuf>) {
-        if self.entry(path).is_none() {
-            let next_entry = crate::Entry::new(path.clone());
-            self.entries.insert(path.clone(), next_entry);
-        }
+    fn create_entry_if_not_exists(&mut self, path: &Arc<PathBuf>) -> &mut crate::Entry {
+        self.entries
+            .entry(path.clone())
+            .or_insert(crate::Entry::new(path.clone()))
     }
 
     /// Returns `true` if path is opened.
