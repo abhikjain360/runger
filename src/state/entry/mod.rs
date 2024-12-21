@@ -37,7 +37,7 @@ impl Entry {
         ret
     }
 
-    #[tracing::instrument(level = "debug", skip(self, joiner))]
+    #[tracing::instrument(level = "trace", skip(self, joiner))]
     pub(crate) fn try_open(&mut self, joiner: &mut crate::state::ReadDirJoiner) {
         if self.is_unopened() {
             joiner.spawn(self.path.clone());

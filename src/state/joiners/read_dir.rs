@@ -34,7 +34,7 @@ impl ReadDirJoiner {
         self.inner.is_empty()
     }
 
-    #[tracing::instrument(level = "debug", skip(self))]
+    #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn spawn(&mut self, path: Arc<PathBuf>) {
         self.inner.push_front(
             async move {
@@ -54,21 +54,16 @@ impl ReadDirJoiner {
 
                 let mut entries = vec![];
 
-                tracing::debug!("read dir entries 1");
                 while let Some(dir_entry) = match read_dir.next_entry().await {
                     Ok(dir_entry) => dir_entry,
                     Err(e) => {
-                        tracing::error!("unable to read dir entry {:?}: {e}", path);
                         return ReadDirResult::err(path, e);
                     }
                 } {
-                    tracing::debug!("read dir entries 2");
                     let path = Arc::new(dir_entry.path().to_path_buf());
                     entries.push(path.clone());
-                    tracing::debug!("read dir entries 3");
                 }
 
-                tracing::debug!("read dir entries 4");
                 ReadDirResult::ok(path, entries)
             }
             .boxed(),

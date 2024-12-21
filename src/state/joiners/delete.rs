@@ -24,7 +24,7 @@ impl DeleteJoiner {
         self.inner.is_empty()
     }
 
-    #[tracing::instrument(level = "debug", skip(self))]
+    #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn spawn(&mut self, path: Arc<PathBuf>) {
         self.inner.push(
             async move {

@@ -29,7 +29,7 @@ impl State {
 
         // poll events until MAX_EVENT_POLL_TIME is reached
         while elapsed < MAX_EVENT_POLL_TIME {
-            if event::poll(MAX_EVENT_POLL_TIME / 3)? {
+            if event::poll(Duration::from_millis(1))? {
                 let event = event::read()?;
 
                 // handle TUI events first for smoother UX
@@ -46,7 +46,7 @@ impl State {
                 return Ok(false);
             }
 
-            if let Some(change) = self.poll_io_event(MAX_EVENT_POLL_TIME / 3)? {
+            if let Some(change) = self.poll_io_event(MAX_EVENT_POLL_TIME / 2)? {
                 let should_exit = self.handle_change_check_should_exit(change)?;
                 return Ok(should_exit);
             }
