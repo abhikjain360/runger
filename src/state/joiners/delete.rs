@@ -9,7 +9,7 @@ use futures::FutureExt;
 #[cfg_attr(debug_assertions, derive(Debug))]
 pub(crate) struct DeleteJoiner {
     // TODO: remove boxed
-    inner: FuturesUnordered<BoxFuture<'static, io::Result<()>>>,
+    inner: FuturesUnordered<BoxFuture<'static, io::Result<Arc<PathBuf>>>>,
 }
 
 impl DeleteJoiner {
@@ -41,13 +41,13 @@ impl DeleteJoiner {
                     tokio::fs::remove_file(path.as_ref()).await?;
                 }
 
-                Ok(())
+                Ok(path)
             }
             .boxed(),
         );
     }
 
-    pub(crate) async fn join_next(&mut self) -> Option<io::Result<()>> {
+    pub(crate) async fn join_next(&mut self) -> Option<io::Result<Arc<PathBuf>>> {
         futures::StreamExt::next(&mut self.inner).await
     }
 }

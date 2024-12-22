@@ -37,6 +37,7 @@ impl StatefulWidget for EntryWidget {
             crate::EntryType::File => render_file(area, buf, state.path.clone()),
             crate::EntryType::Unopened | crate::EntryType::Waiting => render_unopened(area, buf),
             crate::EntryType::PermissionDenied => render_permission_denied(area, buf),
+            crate::EntryType::Deleting => render_deleting(area, buf),
         }
     }
 }
@@ -69,7 +70,13 @@ fn render_empty_dir(area: Rect, buf: &mut Buffer, path: Arc<PathBuf>) {
 }
 
 fn render_permission_denied(area: Rect, buf: &mut Buffer) {
-    let para = Paragraph::new("🔒 Permission Denied").block(Block::bordered());
+    let para =
+        Paragraph::new(format!("🔒 permission denied: {}", area.width)).block(Block::bordered());
+    Widget::render(para, area, buf)
+}
+
+fn render_deleting(area: Rect, buf: &mut Buffer) {
+    let para = Paragraph::new(format!("deleting: {}", area.width)).block(Block::bordered());
     Widget::render(para, area, buf)
 }
 

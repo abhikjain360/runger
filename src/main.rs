@@ -67,12 +67,7 @@ fn run(path: PathBuf, config_path: PathBuf) -> Result<()> {
     let mut terminal = terminal::init()?;
 
     loop {
-        let res = state.handle_events().inspect(|e| {
-            if e.is_handled() {
-                tracing::info!("handled event = {e:?}");
-            }
-        });
-        match res {
+        match state.handle_events() {
             Ok(HandledEvent::Exit) => break,
             Ok(HandledEvent::Redraw) => _ = terminal.draw(state.ui())?,
             Ok(HandledEvent::Nothing) => {}

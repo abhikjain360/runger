@@ -242,7 +242,22 @@ impl State {
         let path = Arc::new(path);
 
         self.joiners.delete_joiner.spawn(path.clone());
-        self.delete_path_entry(path);
+        self.deleting_path_entry(path);
+    }
+
+    fn deleting_path_entry(&mut self, path: Arc<PathBuf>) {
+        let Some(entry) = self.entries.get_mut(path.as_ref()) else {
+            tracing::error!("entry does not exist to delete");
+            return;
+        };
+
+        let entry = std::mem::replace(entry, crate::Entry::deleting(path));
+
+        if let crate::EntryType::Opened(opened) = entry.ty {
+            for entry in opened.entries {
+                self.delete_path_entry(entry);
+            }
+        }
     }
 
     fn delete_path_entry(&mut self, path: Arc<PathBuf>) {
@@ -265,6 +280,8 @@ impl State {
                 } else {
                     tracing::warn!("parent entry exists but does not have the child entry");
                 }
+            } else {
+                tracing::warn!("parent is not opened but still has children");
             }
         }
 

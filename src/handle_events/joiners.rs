@@ -1,4 +1,6 @@
 use std::io;
+use std::path::PathBuf;
+use std::sync::Arc;
 use std::time::Duration;
 
 use futures::stream::FuturesUnordered;
@@ -13,7 +15,7 @@ impl crate::State {
     /// redraw.
     pub(super) fn poll_io_event(&mut self, timeout: Duration) -> io::Result<HandledEvent> {
         enum PollResult {
-            Delete(io::Result<()>),
+            Delete(io::Result<Arc<PathBuf>>),
             ReadDir(ReadDirResult),
             Timeout,
         }
@@ -77,7 +79,10 @@ impl crate::State {
         };
 
         match res {
-            PollResult::Delete(res) => res?,
+            PollResult::Delete(res) => {
+                let path = res?;
+                self.delete_path(path);
+            }
             // TODO: verify that we do need to redraw, as we might have updated optimistically
             PollResult::ReadDir(res) => {
                 self.handle_read_dir_event(res)?;

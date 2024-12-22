@@ -15,6 +15,7 @@ pub(crate) enum EntryType {
     Opened(Opened),
     File,
     Unopened,
+    Deleting,
     Waiting,
     PermissionDenied,
 }
@@ -66,6 +67,13 @@ impl Entry {
         });
 
         Self { path, ty }
+    }
+
+    pub(crate) fn deleting(path: Arc<PathBuf>) -> Self {
+        Self {
+            path,
+            ty: EntryType::Deleting,
+        }
     }
 
     pub(crate) fn permission_denied(path: Arc<PathBuf>) -> Self {
