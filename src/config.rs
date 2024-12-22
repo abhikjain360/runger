@@ -1,9 +1,5 @@
 use std::{num::NonZeroUsize, path::Path};
 
-use mlua::{Lua, Table};
-
-use crate::Result;
-
 #[cfg_attr(debug_assertions, derive(Debug))]
 pub struct Config {
     /// The number of columns that are required to be visible.
@@ -13,8 +9,8 @@ pub struct Config {
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-    #[error("invalid field: required_columns must be greater than 0")]
-    ZeroRequiredColumns,
+    #[error("invalid field: required_columns must be greater than 1")]
+    InvalidRequiredColumns,
 }
 
 impl Default for Config {
@@ -28,21 +24,29 @@ impl Default for Config {
 }
 
 impl Config {
-    pub fn new(path: impl AsRef<Path>) -> Result<Self> {
-        let mut config = Self::default();
-
+    pub fn new(path: impl AsRef<Path>) -> crate::Result<Self> {
         if !path.as_ref().exists() {
-            return Ok(config);
+            return Ok(Self::default());
         }
 
-        let lua = Lua::new();
-        let table: Table = lua.load(path.as_ref()).eval()?;
+        let lua = mlua::Lua::new();
+        let table: mlua::Table = lua.load(path.as_ref()).eval()?;
+
+        Self::try_from(table)
+    }
+}
+
+impl TryFrom<mlua::Table> for Config {
+    type Error = crate::Error;
+
+    fn try_from(table: mlua::Table) -> Result<Self, Self::Error> {
+        let mut config = Self::default();
 
         match table.get::<Option<usize>>("required_columns")? {
-            Some(0) => return Err(Error::ZeroRequiredColumns.into()),
+            Some(..2) => return Err(Error::InvalidRequiredColumns.into()),
             Some(val) => {
                 config.required_columns =
-                    NonZeroUsize::new(val).ok_or(Error::ZeroRequiredColumns)?;
+                    NonZeroUsize::new(val).ok_or(Error::InvalidRequiredColumns)?;
             }
             _ => {}
         };

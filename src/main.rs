@@ -54,7 +54,13 @@ pub fn init_logging(mut log_file_path: PathBuf) -> Result<()> {
 }
 
 fn run(path: PathBuf, config_path: PathBuf) -> Result<()> {
-    let config = Config::new(config_path)?;
+    let config = match Config::new(config_path) {
+        Ok(config) => config,
+        Err(e) => {
+            tracing::error!("unable to load config: {e}");
+            Config::default()
+        }
+    };
 
     let state = &mut State::new(path, config)?;
 

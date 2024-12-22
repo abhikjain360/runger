@@ -235,14 +235,17 @@ impl State {
 
     // TODO: support deleting multiple entries
     pub(crate) fn delete_path(&mut self, path: impl AsRef<PathBuf>) {
-        self.joiners
-            .delete_joiner
-            .spawn(Arc::new(path.as_ref().to_path_buf()));
+        let Ok(path) = path.as_ref().canonicalize() else {
+            tracing::error!("unable to canonicalize path");
+            return;
+        };
+        let path = Arc::new(path);
 
+        self.joiners.delete_joiner.spawn(path.clone());
         self.delete_path_entry(path);
     }
 
-    fn delete_path_entry(&mut self, path: impl AsRef<PathBuf>) {
+    fn delete_path_entry(&mut self, path: Arc<PathBuf>) {
         let Some(entry) = self.entries.swap_remove(path.as_ref()) else {
             return;
         };

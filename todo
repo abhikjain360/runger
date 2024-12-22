@@ -1,7 +1,3 @@
-- remove `StateChange`
-- disallow `config.required_columns < 2`
-- implement `Config::from_lua_table` and `Config::merge`
-- don't fail on invalid config
 - add `EntryType::Deleting` and use that instead of removing the entry before the delete is done
 - creating file
   - this should block
@@ -22,3 +18,4 @@
 - minimal vim-like editor
 - feature flags
 - custom keybindings
+- merge redraw requests into a single redraw request
