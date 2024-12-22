@@ -34,11 +34,16 @@ fn path_formatting(path: &Arc<PathBuf>) -> Option<Text> {
     let file_name = path.file_name()?.to_string_lossy().into_owned();
 
     let mut text = Text::from(file_name);
-    text = match (path.is_dir(), path.is_symlink()) {
-        (true, true) => text.light_green().bold(),
-        (true, false) => text.blue().bold(),
-        (false, true) => text.light_green(),
-        (false, false) => text,
+    text = if path.exists() {
+        match (path.is_dir(), path.is_symlink()) {
+            (true, true) => text.light_green().bold(),
+            (true, false) => text.blue().bold(),
+            (false, true) => text.light_green(),
+            (false, false) => text,
+        }
+    } else {
+        // path is probably deleting
+        text.gray()
     };
 
     Some(text)

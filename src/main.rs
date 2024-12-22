@@ -72,6 +72,8 @@ fn run(path: PathBuf, config_path: PathBuf) -> Result<()> {
             Ok(HandledEvent::Redraw) => _ = terminal.draw(state.ui())?,
             Ok(HandledEvent::Nothing) => {}
             Err(e) => {
+                tracing::error!("unable to handle events: {e}");
+
                 // TODO: make show_error_duration configurable
                 state.command_palette.set_error(e, Duration::from_secs(5));
             }

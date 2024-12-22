@@ -35,9 +35,13 @@ impl StatefulWidget for EntryWidget {
                 StatefulWidget::render(self.get_opened(state.path.clone()), area, buf, opened)
             }
             crate::EntryType::File => render_file(area, buf, state.path.clone()),
-            crate::EntryType::Unopened | crate::EntryType::Waiting => render_unopened(area, buf),
-            crate::EntryType::PermissionDenied => render_permission_denied(area, buf),
-            crate::EntryType::Deleting => render_deleting(area, buf),
+            crate::EntryType::Unopened | crate::EntryType::Waiting => {
+                render_unopened(area, buf, state.path.clone())
+            }
+            crate::EntryType::PermissionDenied => {
+                render_permission_denied(area, buf, state.path.clone())
+            }
+            crate::EntryType::Deleting => render_deleting(area, buf, state.path.clone()),
         }
     }
 }
@@ -47,7 +51,7 @@ fn render_file(area: Rect, buf: &mut Buffer, path: Arc<PathBuf>) {
     Widget::render(para, area, buf)
 }
 
-fn render_unopened(area: Rect, buf: &mut Buffer) {
+fn render_unopened(area: Rect, buf: &mut Buffer, path: Arc<PathBuf>) {
     let border = Block::default().borders(Borders::ALL);
     let inner = border.inner(area);
     Widget::render(border, area, buf);
@@ -59,7 +63,7 @@ fn render_unopened(area: Rect, buf: &mut Buffer) {
     ])
     .split(inner);
 
-    let para = Paragraph::new("loading".to_string()).centered();
+    let para = Paragraph::new(format!("loading: {}", path.to_string_lossy())).centered();
     Widget::render(para, rects[1], buf)
 }
 
@@ -69,14 +73,15 @@ fn render_empty_dir(area: Rect, buf: &mut Buffer, path: Arc<PathBuf>) {
     Widget::render(para, area, buf)
 }
 
-fn render_permission_denied(area: Rect, buf: &mut Buffer) {
-    let para =
-        Paragraph::new(format!("🔒 permission denied: {}", area.width)).block(Block::bordered());
+fn render_permission_denied(area: Rect, buf: &mut Buffer, path: Arc<PathBuf>) {
+    let para = Paragraph::new(format!("🔒 permission denied: {}", path.to_string_lossy()))
+        .block(Block::bordered());
     Widget::render(para, area, buf)
 }
 
-fn render_deleting(area: Rect, buf: &mut Buffer) {
-    let para = Paragraph::new(format!("deleting: {}", area.width)).block(Block::bordered());
+fn render_deleting(area: Rect, buf: &mut Buffer, path: Arc<PathBuf>) {
+    let para =
+        Paragraph::new(format!("deleting: {}", path.to_string_lossy())).block(Block::bordered());
     Widget::render(para, area, buf)
 }
 

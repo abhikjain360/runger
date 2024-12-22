@@ -81,7 +81,7 @@ impl crate::State {
         match res {
             PollResult::Delete(res) => {
                 let path = res?;
-                self.delete_path(path);
+                self.delete_path_entry(path);
             }
             // TODO: verify that we do need to redraw, as we might have updated optimistically
             PollResult::ReadDir(res) => {

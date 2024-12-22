@@ -87,6 +87,8 @@ impl State {
         if let Some(should_execute) = self.command_palette.handle_key_event(key) {
             if should_execute {
                 if let Err(err) = self.execute_command() {
+                    tracing::error!("unable to execute command: {err}");
+
                     self.command_palette
                         .set_error(crate::Error::Command(err), Duration::from_secs(5));
                 }

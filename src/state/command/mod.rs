@@ -20,7 +20,7 @@ impl State {
     pub(crate) fn execute_command(&mut self) -> Result<(), CommandError> {
         match self.command_palette.take() {
             CommandPalette::Command(Command::Delete(DeleteCommand::Confirmed { path })) => {
-                self.delete_path(&path)
+                self.delete_path(path)
             }
 
             CommandPalette::Command(Command::Delete(DeleteCommand::Init)) => {
@@ -40,7 +40,7 @@ impl State {
 
                     _ => return Ok(()),
                 };
-                self.delete_path(&path);
+                self.delete_path(path);
             }
 
             // TODO: support parsing input as command
