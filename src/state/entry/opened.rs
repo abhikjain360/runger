@@ -15,7 +15,7 @@ pub struct Opened {
 }
 
 #[cfg_attr(debug_assertions, derive(Debug))]
-pub struct Selected {
+pub(crate) struct Selected {
     idx: usize,
     offset: usize,
 }
@@ -109,7 +109,6 @@ impl Selected {
         }
     }
 
-    #[expect(dead_code)]
     pub fn idx(&self) -> usize {
         self.idx
     }

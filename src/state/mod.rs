@@ -272,18 +272,32 @@ impl State {
             return;
         };
 
-        if let Some(entry) = entry
+        if let Some(parent_entry) = entry
             .path
             .parent()
             .and_then(|path| self.entries.get_mut(&path.to_path_buf()))
         {
-            if let crate::EntryType::Opened(opened) = &mut entry.ty {
+            // TODO: move this to a separate function inside `Opened`
+            //
+            // TODO: comments
+            if let crate::EntryType::Opened(opened) = &mut parent_entry.ty {
                 if let Some(idx) = opened
                     .entries
                     .iter()
                     .position(|e| e.as_ref() == path.as_ref())
                 {
                     opened.entries.remove(idx);
+
+                    if opened.entries.is_empty() {
+                        opened.selected = None;
+                        self.move_left();
+                    } else if let Some(selected) = opened.selected.as_mut() {
+                        if selected.idx() >= opened.entries.len() {
+                            *selected = crate::state::entry::Selected::new(0, 0);
+                        }
+                    } else {
+                        tracing::warn!("opened entry which is not empty has no selected entry");
+                    }
                 } else {
                     tracing::warn!("parent entry exists but does not have the child entry");
                 }

@@ -7,8 +7,8 @@ use std::sync::Arc;
 
 use crate::{config::Config, Result};
 
-pub mod opened;
-pub use opened::{Opened, Selected};
+pub(crate) mod opened;
+pub(crate) use opened::{Opened, Selected};
 
 #[cfg_attr(debug_assertions, derive(Debug))]
 pub(crate) enum EntryType {
