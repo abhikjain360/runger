@@ -1,3 +1,5 @@
 /target
 logs
 testdir
+perf.data*
+flamegraph.svg

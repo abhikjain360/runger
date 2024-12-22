@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use clap::{CommandFactory, Parser};
+use handle_events::HandledEvent;
 use indexmap::IndexMap;
 use tracing::error;
 use tracing_subscriber::prelude::*;
@@ -60,17 +61,20 @@ fn run(path: PathBuf, config_path: PathBuf) -> Result<()> {
     let mut terminal = terminal::init()?;
 
     loop {
-        let res = state.handle_events();
+        let res = state.handle_events().inspect(|e| {
+            if e.is_handled() {
+                tracing::info!("handled event = {e:?}");
+            }
+        });
         match res {
-            Ok(true) => break,
-            Ok(false) => {}
+            Ok(HandledEvent::Exit) => break,
+            Ok(HandledEvent::Redraw) => _ = terminal.draw(state.ui())?,
+            Ok(HandledEvent::Nothing) => {}
             Err(e) => {
                 // TODO: make show_error_duration configurable
                 state.command_palette.set_error(e, Duration::from_secs(5));
             }
         }
-
-        terminal.draw(state.ui())?;
     }
 
     state.finish_pending_io_events()?;

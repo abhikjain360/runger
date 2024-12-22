@@ -4,11 +4,14 @@ use std::time::Duration;
 use futures::stream::FuturesUnordered;
 use futures::{FutureExt, StreamExt};
 
-use crate::handle_events::StateChange;
 use crate::state::ReadDirResult;
 
+use super::HandledEvent;
+
 impl crate::State {
-    pub(super) fn poll_io_event(&mut self, timeout: Duration) -> io::Result<Option<StateChange>> {
+    /// Returns `true` if timeout did not occur, that is, some IO event was handled. We should
+    /// redraw.
+    pub(super) fn poll_io_event(&mut self, timeout: Duration) -> io::Result<HandledEvent> {
         enum PollResult {
             Delete(io::Result<()>),
             ReadDir(ReadDirResult),
@@ -51,7 +54,7 @@ impl crate::State {
         }
 
         if futures.is_empty() {
-            return Ok(None);
+            return Ok(HandledEvent::Nothing);
         }
 
         futures.push(
@@ -70,21 +73,20 @@ impl crate::State {
         })?;
 
         let Some(res) = res else {
-            return Ok(None);
+            return Ok(HandledEvent::Nothing);
         };
 
         match res {
-            PollResult::Delete(res) => {
-                res?;
-                Ok(Some(StateChange::NoActionRequired))
-            }
+            PollResult::Delete(res) => res?,
+            // TODO: verify that we do need to redraw, as we might have updated optimistically
             PollResult::ReadDir(res) => {
                 self.handle_read_dir_event(res)?;
                 self.try_open_selected_path();
-                Ok(Some(StateChange::NoActionRequired))
             }
-            PollResult::Timeout => Ok(None),
+            PollResult::Timeout => return Ok(HandledEvent::Nothing),
         }
+
+        Ok(HandledEvent::Redraw)
     }
 
     fn handle_read_dir_event(&mut self, result: crate::state::ReadDirResult) -> io::Result<()> {

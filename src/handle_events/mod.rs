@@ -11,21 +11,21 @@ mod command_palette;
 mod entry;
 mod joiners;
 
-enum StateChange {
-    NoActionRequired,
-    ReEvalOpenedPath,
-    // TODO: command completion rotations
-    TryCommandCompletion,
-    ExecuteCommand,
-    Exit,
-}
-
 const MAX_EVENT_POLL_TIME: Duration = Duration::from_millis(1000 / 120);
 
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum HandledEvent {
+    Exit,
+    Redraw,
+    Nothing,
+}
+
 impl State {
-    pub fn handle_events(&mut self) -> Result<bool> {
+    pub fn handle_events(&mut self) -> Result<HandledEvent> {
         let start = Instant::now();
         let mut elapsed = start.elapsed();
+
+        let mut ret = HandledEvent::Nothing;
 
         // poll events until MAX_EVENT_POLL_TIME is reached
         while elapsed < MAX_EVENT_POLL_TIME {
@@ -33,102 +33,103 @@ impl State {
                 let event = event::read()?;
 
                 // handle TUI events first for smoother UX
-                if let Some(change) = self.handle_tui_event(&event) {
-                    let should_exit = self.handle_change_check_should_exit(change)?;
-                    return Ok(should_exit);
-                }
+                match self.handle_tui_event(&event) {
+                    HandledEvent::Exit => return Ok(HandledEvent::Exit),
+                    // not returning here as we still want to poll IO events and drive the async
+                    // runtime
+                    HandledEvent::Redraw => ret = HandledEvent::Redraw,
+
+                    HandledEvent::Nothing => {}
+                };
             }
 
             elapsed = start.elapsed();
 
             // return if no time left for IO events
             if elapsed >= MAX_EVENT_POLL_TIME {
-                return Ok(false);
+                return Ok(ret);
             }
 
-            if let Some(change) = self.poll_io_event(MAX_EVENT_POLL_TIME / 2)? {
-                let should_exit = self.handle_change_check_should_exit(change)?;
-                return Ok(should_exit);
+            let ret = self.poll_io_event(MAX_EVENT_POLL_TIME / 2)?;
+            if ret.is_handled() {
+                return Ok(ret);
             }
             elapsed = start.elapsed();
         }
 
-        Ok(false)
+        Ok(ret)
     }
 
-    fn handle_tui_event(&mut self, event: &Event) -> Option<StateChange> {
+    fn handle_tui_event(&mut self, event: &Event) -> HandledEvent {
         if let Event::Key(key) = event {
-            if let Some(change) = self.handle_key_event(key) {
-                return Some(change);
+            let ret = self.handle_key_event(key);
+            if ret.is_handled() {
+                return ret;
             }
         }
 
-        self.selected_entry_mut().handle_event(event)
-    }
-
-    fn handle_key_event(&mut self, key: &KeyEvent) -> Option<StateChange> {
-        if key.modifiers.contains(KeyModifiers::CONTROL) {
-            return self
-                .handle_ctrl_key_event(key.code)
-                .then_some(StateChange::Exit);
+        if self.selected_entry_mut().handle_event(event) {
+            self.try_open_selected_path();
+            return HandledEvent::Redraw;
         }
 
-        if let Some(change) = self.command_palette.handle_key_event(key) {
-            return Some(change);
+        HandledEvent::Nothing
+    }
+
+    fn handle_key_event(&mut self, key: &KeyEvent) -> HandledEvent {
+        if key.modifiers.contains(KeyModifiers::CONTROL) {
+            let ret = self.handle_ctrl_key_event(key.code);
+            if ret.is_handled() {
+                return ret;
+            }
+        }
+
+        if let Some(should_execute) = self.command_palette.handle_key_event(key) {
+            if should_execute {
+                if let Err(err) = self.execute_command() {
+                    self.command_palette
+                        .set_error(crate::Error::Command(err), Duration::from_secs(5));
+                }
+            }
+
+            return HandledEvent::Redraw;
         }
 
         if !key.modifiers.is_empty() {
-            return None;
+            return HandledEvent::Nothing;
         }
 
         match key.code {
-            KeyCode::Esc | KeyCode::Char('q') => Some(StateChange::Exit),
+            KeyCode::Esc | KeyCode::Char('q') => return HandledEvent::Exit,
 
-            KeyCode::Char('l') | KeyCode::Right => {
-                self.move_right();
-                Some(StateChange::NoActionRequired)
-            }
+            KeyCode::Char('l') | KeyCode::Right => _ = self.move_right(),
 
-            KeyCode::Char('h') | KeyCode::Left => {
-                self.move_left();
-                Some(StateChange::NoActionRequired)
-            }
+            KeyCode::Char('h') | KeyCode::Left => _ = self.move_left(),
 
             KeyCode::Char(';') => {
                 self.command_palette = CommandPalette::Typing {
                     input: String::new(),
-                };
-                Some(StateChange::NoActionRequired)
+                }
             }
 
-            KeyCode::Char('d') => {
-                self.command_palette.set_delete_command_init();
-                Some(StateChange::NoActionRequired)
-            }
+            KeyCode::Char('d') => self.command_palette.set_delete_command_init(),
 
-            _ => None,
-        }
+            _ => return HandledEvent::Nothing,
+        };
+
+        HandledEvent::Redraw
     }
 
-    fn handle_ctrl_key_event(&self, key_code: KeyCode) -> bool {
-        #[allow(clippy::match_like_matches_macro)]
+    fn handle_ctrl_key_event(&self, key_code: KeyCode) -> HandledEvent {
         match key_code {
-            KeyCode::Char('c') => true,
-            _ => false,
+            KeyCode::Char('c') => HandledEvent::Exit,
+            _ => HandledEvent::Nothing,
         }
     }
+}
 
-    fn handle_change_check_should_exit(&mut self, change: StateChange) -> Result<bool> {
-        match change {
-            StateChange::ReEvalOpenedPath => _ = self.try_open_selected_path(),
-
-            StateChange::TryCommandCompletion => todo!(),
-            StateChange::ExecuteCommand => self.execute_command()?,
-
-            StateChange::NoActionRequired => {}
-            StateChange::Exit => return Ok(true),
-        }
-
-        Ok(false)
+impl HandledEvent {
+    pub fn is_handled(&self) -> bool {
+        !matches!(self, HandledEvent::Nothing)
     }
 }

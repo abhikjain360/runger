@@ -17,7 +17,7 @@ pub enum CommandError {
 
 impl State {
     #[tracing::instrument(err, level = "trace", skip(self))]
-    pub(crate) fn execute_command(&mut self) -> crate::Result<()> {
+    pub(crate) fn execute_command(&mut self) -> Result<(), CommandError> {
         match self.command_palette.take() {
             CommandPalette::Command(Command::Delete(DeleteCommand::Confirmed { path })) => {
                 self.delete_path(&path)
@@ -32,7 +32,7 @@ impl State {
                             tracing::warn!(
                                 "attempted to delete without selecting an entry in the column"
                             );
-                            return Err(CommandError::InvalidCommand.into());
+                            return Err(CommandError::InvalidCommand);
                         }
                     },
 

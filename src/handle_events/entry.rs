@@ -1,42 +1,33 @@
 use crossterm::event::{Event, KeyCode, KeyEvent};
 
-use crate::handle_events::StateChange;
 use crate::state::entry;
 
 impl crate::Entry {
-    pub(super) fn handle_event(&mut self, event: &Event) -> Option<StateChange> {
+    pub(super) fn handle_event(&mut self, event: &Event) -> bool {
         match &mut self.ty {
             crate::EntryType::Opened(opened) => opened.handle_event(event),
-            _ => None,
+            _ => false,
         }
     }
 }
 
 impl entry::Opened {
-    fn handle_event(&mut self, event: &Event) -> Option<StateChange> {
+    fn handle_event(&mut self, event: &Event) -> bool {
         match event {
             Event::Key(key) => self.handle_key_event(key),
-            _ => None,
+            _ => false,
         }
     }
 
-    fn handle_key_event(&mut self, key: &KeyEvent) -> Option<StateChange> {
+    fn handle_key_event(&mut self, key: &KeyEvent) -> bool {
         if !key.modifiers.is_empty() {
-            return None;
+            return false;
         }
 
         match key.code {
-            KeyCode::Char('j') | KeyCode::Down => self.select_down_state_change(),
-            KeyCode::Char('k') | KeyCode::Up => self.select_up_state_change(),
-            _ => None,
+            KeyCode::Char('j') | KeyCode::Down => self.select_down(),
+            KeyCode::Char('k') | KeyCode::Up => self.select_up(),
+            _ => false,
         }
-    }
-
-    fn select_up_state_change(&mut self) -> Option<StateChange> {
-        self.select_up().then_some(StateChange::ReEvalOpenedPath)
-    }
-
-    fn select_down_state_change(&mut self) -> Option<StateChange> {
-        self.select_down().then_some(StateChange::ReEvalOpenedPath)
     }
 }
