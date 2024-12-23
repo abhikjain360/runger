@@ -1,11 +1,33 @@
 use crossterm::event::{KeyCode, KeyEvent};
 
+use crate::handle_events::HandledEvent;
 use crate::state::{Command, CommandPalette, DeleteCommand};
+use crate::State;
+
+impl State {
+    pub(super) fn handle_command_palette_key_event(
+        &mut self,
+        key: &KeyEvent,
+    ) -> crate::Result<HandledEvent> {
+        match key.code {
+            KeyCode::Esc => self.command_palette.set_empty(),
+
+            KeyCode::Enter => self
+                .execute_command()
+                .inspect_err(|e| tracing::error!("unable to execute command: {e}"))?,
+
+            // TODO: command completion rotations
+            KeyCode::Tab => {}
+
+            _ => return Ok(self.command_palette.handle_key_event(key)),
+        };
+
+        Ok(HandledEvent::Redraw)
+    }
+}
 
 impl CommandPalette {
-    /// Returns `Some(true)` if the command should be executed. Returns `None` if the event was not
-    /// handled.
-    pub(super) fn handle_key_event(&mut self, key: &KeyEvent) -> Option<bool> {
+    pub(super) fn handle_key_event(&mut self, key: &KeyEvent) -> HandledEvent {
         match self {
             CommandPalette::Typing { input }
             | CommandPalette::Command(Command::Delete(DeleteCommand::Typing { input })) => {
@@ -18,36 +40,22 @@ impl CommandPalette {
                         input.pop();
                     }
 
-                    KeyCode::Esc => self.set_empty(),
-
-                    // TODO: command completion rotations
-                    KeyCode::Tab => {}
-
-                    KeyCode::Enter => {
-                        return Some(true);
-                    }
-
                     _ => {}
                 };
-                Some(false)
+                HandledEvent::Redraw
             }
 
-            CommandPalette::Command(Command::Delete(DeleteCommand::Init)) => match key.code {
-                KeyCode::Char(c) => {
-                    self.set_delete_command_typing(c.to_string());
-                    Some(false)
-                }
+            CommandPalette::Command(Command::Delete(DeleteCommand::Init)) => {
+                match key.code {
+                    KeyCode::Char(c) => self.set_delete_command_typing(c.to_string()),
 
-                KeyCode::Esc => {
-                    self.set_empty();
-                    Some(false)
-                }
+                    _ => return HandledEvent::Nothing,
+                };
 
-                KeyCode::Enter => Some(true),
-                _ => Some(false),
-            },
+                HandledEvent::Redraw
+            }
 
-            _ => None,
+            _ => HandledEvent::Nothing,
         }
     }
 }

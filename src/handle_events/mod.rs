@@ -84,18 +84,14 @@ impl State {
             }
         }
 
-        if let Some(should_execute) = self.command_palette.handle_key_event(key) {
-            if should_execute {
-                if let Err(err) = self.execute_command() {
-                    tracing::error!("unable to execute command: {err}");
-
-                    self.command_palette
-                        .set_error(crate::Error::Command(err), Duration::from_secs(5));
-                }
+        match self.handle_command_palette_key_event(key) {
+            Ok(ret) if ret.is_handled() => return ret,
+            Ok(_) => {}
+            Err(e) => {
+                self.command_palette.set_error(e, Duration::from_secs(5));
+                return HandledEvent::Redraw;
             }
-
-            return HandledEvent::Redraw;
-        }
+        };
 
         if !key.modifiers.is_empty() {
             return HandledEvent::Nothing;
