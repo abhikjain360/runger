@@ -1,4 +1,3 @@
-- add `EntryType::Deleting` and use that instead of removing the entry before the delete is done
 - creating file
   - this should block
 - renaming file
@@ -7,6 +6,7 @@
 - deleting selection
 - renaming selection
 - creating multiple files
+- bulk operations
 - handle opening files using mime types
 - hooks for events
 - sorting
@@ -15,7 +15,7 @@
 - option for opening default editor when usign `lua` command
 - visible columns as a lua function with state as an argument
 - themeing
-- minimal vim-like editor
-- feature flags
 - custom keybindings
 - merge redraw requests into a single redraw request
+- feature flags
+- minimal vim-like editor
