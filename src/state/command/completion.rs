@@ -4,19 +4,15 @@ use crate::{Command, Path, State};
 
 impl State {
     pub(crate) fn complete_command(&mut self, next: bool) {
-        // SAFETY: we do not borrow self.command_palette again
-        let command_palette = unsafe {
-            std::mem::transmute::<&mut CommandPalette, &mut CommandPalette>(
-                &mut self.command_palette,
-            )
-        };
-
-        match command_palette {
-            CommandPalette::Command(Command::Delete(DeleteCommand::Typing(typing))) => {
+        match self.command_palette {
+            CommandPalette::Command(Command::Delete(DeleteCommand::Typing(ref mut typing))) => {
                 if typing.has_completion() {
                     typing.select_completion(next);
                     return;
                 }
+
+                // SAFETY: we do not borrow typing again
+                let typing = unsafe { std::mem::transmute::<&mut Typing, &mut Typing>(typing) };
 
                 if let Some(opened) = self.selected_entry().get_opened() {
                     filter_completions(&opened.entries, typing, next);
