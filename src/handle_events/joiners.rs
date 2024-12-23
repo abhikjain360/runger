@@ -103,7 +103,21 @@ impl crate::State {
                 crate::Entry::file(result.path.clone())
             }
             crate::state::ReadDirResultKind::Ok(entries) => {
-                crate::Entry::opened(result.path.clone(), entries, self.config.clone())
+                let select_on_open =
+                    self.entries
+                        .swap_remove(&result.path)
+                        .and_then(|entry| match entry.ty {
+                            crate::EntryType::Waiting(unopened)
+                            | crate::EntryType::Unopened(unopened) => unopened.select_on_open,
+                            _ => None,
+                        });
+
+                crate::Entry::opened(
+                    result.path.clone(),
+                    entries,
+                    self.config.clone(),
+                    select_on_open,
+                )
             }
             crate::state::ReadDirResultKind::Err(e) => return Err(e),
         };

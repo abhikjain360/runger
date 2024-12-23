@@ -76,7 +76,7 @@ impl Opened {
             // if offset + margin is after idx ..
             if selected.offset + top_margin > selected.idx {
                 // .. then set it to margin above idx, as offset should not be after idx ..
-                selected.offset = selected.idx - top_margin;
+                selected.offset = selected.idx.max(top_margin) - top_margin;
             }
             // .. else if gap b/w offset and idx and greater than (col height - margin) then offset
             // should move down until it is is just equal to that ..
@@ -95,6 +95,8 @@ impl Opened {
             liststate = liststate
                 .with_selected(Some(selected.idx))
                 .with_offset(selected.offset);
+        } else {
+            tracing::warn!("generating list state without selected entry");
         }
 
         liststate

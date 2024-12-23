@@ -33,7 +33,7 @@ impl State {
         let config = Rc::new(config);
 
         let first_visible_column = Arc::new(path.canonicalize()?);
-        let first_entry = crate::Entry::new(first_visible_column.clone());
+        let first_entry = crate::Entry::new(first_visible_column.clone(), None);
 
         let entries =
             crate::Map::from_iter(std::iter::once((first_visible_column.clone(), first_entry)));
@@ -55,10 +55,14 @@ impl State {
         Ok(ret)
     }
 
-    fn create_entry_if_not_exists(&mut self, path: &Arc<PathBuf>) -> &mut crate::Entry {
+    fn create_entry_if_not_exists(
+        &mut self,
+        path: &Arc<PathBuf>,
+        select_on_open: Option<Arc<PathBuf>>,
+    ) -> &mut crate::Entry {
         self.entries
             .entry(path.clone())
-            .or_insert(crate::Entry::new(path.clone()))
+            .or_insert(crate::Entry::new(path.clone(), select_on_open))
     }
 
     /// Returns `true` if path is opened.
@@ -84,7 +88,7 @@ impl State {
                 return false;
             };
 
-            self.create_entry_if_not_exists(&next_path);
+            self.create_entry_if_not_exists(&next_path, None);
 
             #[cfg(debug_assertions)]
             {
@@ -102,7 +106,6 @@ impl State {
     }
 
     /// Helper function for `move_right`. **DO NOT CALL DIRECTLY**, it might panic.
-    // TODO: move this to a separate crate so that it can not be called directly
     fn get_next_visible_column(&mut self) -> Option<Arc<PathBuf>> {
         let first_visible_entry = match self.visible_columns_at(0) {
             Some(entry) => entry,
@@ -116,7 +119,7 @@ impl State {
         match &first_visible_entry.ty {
             crate::EntryType::Opened(opened) => {
                 if let Some(next_path) = opened.selected_entry().cloned() {
-                    self.create_entry_if_not_exists(&next_path);
+                    self.create_entry_if_not_exists(&next_path, None);
                     self.try_open_selected_path();
 
                     return Some(next_path);
@@ -126,7 +129,7 @@ impl State {
                 None
             }
 
-            crate::EntryType::Unopened => {
+            crate::EntryType::Unopened(_) => {
                 tracing::error!("encountered unopened entry even after State.entry_at_depth check");
                 let path = first_visible_entry.path.clone();
                 self.joiners.read_dir_joiner.spawn(path);
@@ -168,43 +171,6 @@ impl State {
                 false
             }
         }
-
-        // match self.entry_at_depth(required_columns) {
-        //     // current path has more columns than required columns and the last entry is opened, so
-        //     // we can shift the visible columns.
-        //     Ok(entry) if entry.is_opened() => {
-        //         if let Some(next_start) = self.move_right_inner() {
-        //             self.first_visible_column = next_start;
-        //             return true;
-        //         };
-        //         false
-        //     }
-        //
-        //     // current path has more columns than required columns and the last entry is unopened,
-        //     // so we try to open the selected path but can not shift the visible columns. meanwhile
-        //     // we move the selected_column.
-        //     Ok(entry) if entry.is_unopened() => {
-        //         self.try_open_selected_path();
-        //         self.try_move_selected_column_right(required_columns)
-        //     }
-        //
-        //     // current path has more columns than required columns and the last entry is neither
-        //     // opened nor unopened, so we can not shift the visible columns. we just move the
-        //     // selected_column.
-        //     // TODO: handle the case when entry is still pending
-        //     Ok(_) => self.try_move_selected_column_right(required_columns),
-        //
-        //     // current path has less columns than required columns, so we can not shift the visible
-        //     // columns. we just move the selected_column.
-        //     Err((_, depth)) if depth > self.selected_column + 2 => {
-        //         self.try_move_selected_column_right(required_columns)
-        //     }
-        //
-        //     // current path has less columns than required columns, so we can not shift the visible
-        //     // columns. also depth is less than selected_column + 2, so we can not move the
-        //     // selected column either.
-        //     Err(_) => false,
-        // }
     }
 
     pub(crate) fn move_left(&mut self) -> bool {
@@ -222,7 +188,7 @@ impl State {
         let parent_path = Arc::new(parent_path.to_path_buf());
 
         // create an unopened entry for the parent path if there is none
-        self.create_entry_if_not_exists(&parent_path);
+        self.create_entry_if_not_exists(&parent_path, Some(self.first_visible_column.clone()));
 
         // try to open parent path
         self.first_visible_column = parent_path;

@@ -6,17 +6,19 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 use crate::{config::Config, Result};
-
-pub(crate) mod opened;
 pub(crate) use opened::{Opened, Selected};
+use unopened::Unopened;
+
+mod opened;
+mod unopened;
 
 #[cfg_attr(debug_assertions, derive(Debug))]
 pub(crate) enum EntryType {
     Opened(Opened),
     File,
-    Unopened,
+    Unopened(Unopened),
     Deleting,
-    Waiting,
+    Waiting(Unopened),
     PermissionDenied,
 }
 
@@ -27,22 +29,23 @@ pub struct Entry {
 }
 
 impl Entry {
-    pub(crate) fn new(path: Arc<PathBuf>) -> Self {
+    pub(crate) fn new(path: Arc<PathBuf>, select_on_open: Option<Arc<PathBuf>>) -> Self {
         let mut ret = Self {
             path: path.clone(),
             ty: EntryType::File,
         };
         if path.is_dir() {
-            ret.ty = EntryType::Unopened;
+            ret.ty = EntryType::Unopened(Unopened { select_on_open });
         }
         ret
     }
 
     #[tracing::instrument(level = "trace", skip(self, joiner))]
     pub(crate) fn try_open(&mut self, joiner: &mut crate::state::ReadDirJoiner) {
-        if self.is_unopened() {
+        if let EntryType::Unopened(unopened) = std::mem::replace(&mut self.ty, EntryType::Deleting)
+        {
             joiner.spawn(self.path.clone());
-            self.ty = EntryType::Waiting;
+            self.ty = EntryType::Waiting(unopened);
         }
     }
 
@@ -57,11 +60,17 @@ impl Entry {
         path: Arc<PathBuf>,
         mut entries: Vec<Arc<PathBuf>>,
         config: Rc<Config>,
+        select_on_open: Option<Arc<PathBuf>>,
     ) -> Self {
         entries.sort();
 
+        let selected = select_on_open
+            .and_then(|path| entries.iter().position(|e| e == &path))
+            .map(|idx| Selected::new(idx, 0))
+            .or_else(|| entries.first().map(|_| Selected::new(0, 0)));
+
         let ty = EntryType::Opened(Opened {
-            selected: entries.first().map(|_| Selected::new(0, 0)),
+            selected,
             entries,
             config: config.clone(),
         });
@@ -91,7 +100,7 @@ impl Entry {
     }
 
     pub(crate) fn is_unopened(&self) -> bool {
-        matches!(self.ty, EntryType::Unopened)
+        matches!(self.ty, EntryType::Unopened(_))
     }
 
     #[expect(dead_code)]

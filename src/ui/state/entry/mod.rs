@@ -35,7 +35,7 @@ impl StatefulWidget for EntryWidget {
                 StatefulWidget::render(self.get_opened(state.path.clone()), area, buf, opened)
             }
             crate::EntryType::File => render_file(area, buf, state.path.clone()),
-            crate::EntryType::Unopened | crate::EntryType::Waiting => {
+            crate::EntryType::Unopened(_) | crate::EntryType::Waiting(_) => {
                 render_unopened(area, buf, state.path.clone())
             }
             crate::EntryType::PermissionDenied => {
