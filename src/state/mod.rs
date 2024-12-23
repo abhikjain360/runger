@@ -70,8 +70,9 @@ impl State {
         let required_depth = usize::from(self.config.required_columns) - self.selected_column;
 
         // SAFETY: we do not borrow self.joiners.read_dir_joiners again
-        let joiner =
-            unsafe { std::mem::transmute::<&mut _, &mut _>(&mut self.joiners.read_dir_joiner) };
+        let joiner = unsafe {
+            std::mem::transmute::<&mut _, &mut ReadDirJoiner>(&mut self.joiners.read_dir_joiner)
+        };
         let mut entry = self.selected_entry_mut();
 
         for _ in 0..required_depth {
@@ -238,14 +239,13 @@ impl State {
             return;
         };
 
+        // delete the entry from parent, if exists
         if let Some(parent_entry) = entry
             .path
             .parent()
             .and_then(|path| self.entries.get_mut(&path.to_path_buf()))
         {
             // TODO: move this to a separate function inside `Opened`
-            //
-            // TODO: comments
             if let crate::EntryType::Opened(opened) = &mut parent_entry.ty {
                 if let Some(idx) = opened
                     .entries
@@ -254,10 +254,14 @@ impl State {
                 {
                     opened.entries.remove(idx);
 
+                    // if after deleting the entry, the parent is empty, move left as we will
+                    // render parent as empty dir
                     if opened.entries.is_empty() {
                         opened.selected = None;
                         self.move_left();
                     } else if let Some(selected) = opened.selected.as_mut() {
+                        // if after deleting the entry, the selected entry is at the end of the
+                        // entries, move it to the first entry
                         if selected.idx() >= opened.entries.len() {
                             *selected = crate::state::entry::Selected::new(0, 0);
                         }
@@ -272,6 +276,7 @@ impl State {
             }
         }
 
+        // if deleted entry is opened (that is, a directory), delete all its children as well
         if let crate::EntryType::Opened(opened) = entry.ty {
             for entry in opened.entries {
                 self.delete_path_entry(entry);

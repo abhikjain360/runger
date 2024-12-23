@@ -24,8 +24,6 @@ pub mod ui;
 
 type Map<K, V> = IndexMap<K, V, ahash::random_state::RandomState>;
 
-/// Initialises logging. The returned guard shouldn't be dropped otherwise there is guarantee that
-/// all logs will be flushed.
 pub fn init_logging(mut log_file_path: PathBuf) -> Result<()> {
     if log_file_path.is_dir() {
         return Err(cli::Error::LogFilePathIsDirectory(log_file_path).into());
@@ -35,6 +33,7 @@ pub fn init_logging(mut log_file_path: PathBuf) -> Result<()> {
         Some(path) if log_file_path.pop() => path,
         _ => return Err(cli::Error::InvalidLogFilePath(log_file_path).into()),
     };
+    // we popped the file name
     let log_dir_path = log_file_path;
 
     // log to file

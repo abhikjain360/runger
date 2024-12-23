@@ -19,3 +19,4 @@
 - merge redraw requests into a single redraw request
 - feature flags
 - minimal vim-like editor
+- use `cfg-if`

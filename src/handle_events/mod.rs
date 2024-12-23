@@ -104,7 +104,7 @@ impl State {
 
             KeyCode::Char('h') | KeyCode::Left => _ = self.move_left(),
 
-            KeyCode::Char(';') => {
+            KeyCode::Char(';') | KeyCode::Char(':') => {
                 self.command_palette = CommandPalette::Typing {
                     input: String::new(),
                 }
