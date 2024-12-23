@@ -1,9 +1,9 @@
 use std::collections::VecDeque;
 use std::io;
-use std::path::PathBuf;
-use std::sync::Arc;
 
 use futures::future::{BoxFuture, FutureExt};
+
+use crate::Path;
 
 pub(crate) struct ReadDirJoiner {
     // TODO: remove boxed
@@ -11,12 +11,12 @@ pub(crate) struct ReadDirJoiner {
 }
 
 pub(crate) struct ReadDirResult {
-    pub(crate) path: Arc<PathBuf>,
+    pub(crate) path: Path,
     pub(crate) kind: ReadDirResultKind,
 }
 
 pub(crate) enum ReadDirResultKind {
-    Ok(Vec<Arc<PathBuf>>),
+    Ok(Vec<Path>),
     Err(io::Error),
     PermissionDenied,
     NotADirectory,
@@ -35,7 +35,7 @@ impl ReadDirJoiner {
     }
 
     #[tracing::instrument(level = "trace", skip(self))]
-    pub(crate) fn spawn(&mut self, path: Arc<PathBuf>) {
+    pub(crate) fn spawn(&mut self, path: Path) {
         self.inner.push_front(
             async move {
                 let read_dir_result = tokio::fs::read_dir(path.as_ref()).await;
@@ -60,8 +60,7 @@ impl ReadDirJoiner {
                         return ReadDirResult::err(path, e);
                     }
                 } {
-                    let path = Arc::new(dir_entry.path().to_path_buf());
-                    entries.push(path.clone());
+                    entries.push(Path::from(dir_entry.path()));
                 }
 
                 ReadDirResult::ok(path, entries)
@@ -79,28 +78,28 @@ impl ReadDirJoiner {
 }
 
 impl ReadDirResult {
-    fn permission_denied(path: Arc<PathBuf>) -> Self {
+    fn permission_denied(path: Path) -> Self {
         Self {
             path,
             kind: ReadDirResultKind::PermissionDenied,
         }
     }
 
-    fn not_a_directory(path: Arc<PathBuf>) -> Self {
+    fn not_a_directory(path: Path) -> Self {
         Self {
             path,
             kind: ReadDirResultKind::NotADirectory,
         }
     }
 
-    pub(crate) fn ok(path: Arc<PathBuf>, entries: Vec<Arc<PathBuf>>) -> Self {
+    pub(crate) fn ok(path: Path, entries: Vec<Path>) -> Self {
         Self {
             path,
             kind: ReadDirResultKind::Ok(entries),
         }
     }
 
-    pub(crate) fn err(path: Arc<PathBuf>, err: io::Error) -> Self {
+    pub(crate) fn err(path: Path, err: io::Error) -> Self {
         Self {
             path,
             kind: ReadDirResultKind::Err(err),

@@ -1,9 +1,7 @@
-use std::path::{Path, PathBuf};
-use std::sync::Arc;
-
 pub(crate) use crate::state::command::delete::DeleteCommand;
 
 use crate::state::{CommandPalette, State};
+use crate::Path;
 
 mod completion;
 mod delete;
@@ -60,7 +58,7 @@ impl State {
         Ok(())
     }
 
-    fn match_file_path(&self, path: impl AsRef<Path>) -> Option<Arc<PathBuf>> {
+    fn match_file_path(&self, path: impl AsRef<std::path::Path>) -> Option<Path> {
         let input_path = path.as_ref();
         let opened = self.selected_entry().get_opened()?;
 

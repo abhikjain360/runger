@@ -1,5 +1,4 @@
-use std::path::PathBuf;
-use std::sync::Arc;
+use crate::Path;
 
 impl crate::State {
     pub(crate) fn visible_columns_mut(&mut self) -> VisibleColumnsMut {
@@ -18,7 +17,7 @@ impl crate::State {
 
         let mut current_path = self.first_visible_column.clone();
         for _ in 1..=depth {
-            let entry = self.entry(&current_path)?;
+            let entry = self.entry(current_path.as_ref())?;
 
             current_path = match &entry.ty {
                 crate::EntryType::Opened(opened) => opened.selected_entry()?.clone(),
@@ -26,7 +25,7 @@ impl crate::State {
             };
         }
 
-        self.entry(&current_path)
+        self.entry(current_path.as_ref())
     }
 
     pub(super) fn visible_columns_mut_at(&mut self, depth: usize) -> Option<&mut crate::Entry> {
@@ -36,7 +35,7 @@ impl crate::State {
 
         let mut current_path = self.first_visible_column.clone();
         for _ in 1..=depth {
-            let entry = self.entry_mut(&current_path)?;
+            let entry = self.entry_mut(current_path.as_ref())?;
 
             current_path = match &entry.ty {
                 crate::EntryType::Opened(opened) => opened.selected_entry()?.clone(),
@@ -44,13 +43,13 @@ impl crate::State {
             };
         }
 
-        self.entry_mut(&current_path)
+        self.entry_mut(current_path.as_ref())
     }
 }
 
 pub(crate) struct VisibleColumnsMut<'a> {
     state: &'a mut crate::State,
-    next: Option<Arc<PathBuf>>,
+    next: Option<Path>,
     depth: usize,
 }
 
@@ -64,7 +63,7 @@ impl<'a> Iterator for VisibleColumnsMut<'a> {
 
         let next = self.next.take()?;
 
-        let entry = self.state.entry_mut(&next)?;
+        let entry = self.state.entry_mut(next.as_ref())?;
 
         if let crate::EntryType::Opened(opened) = &entry.ty {
             self.next = opened.selected_entry().cloned();

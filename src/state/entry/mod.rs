@@ -5,7 +5,8 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use crate::{config::Config, Result};
+use crate::config::Config;
+use crate::{Path, Result};
 pub(crate) use opened::{Opened, Selected};
 use unopened::Unopened;
 
@@ -24,12 +25,12 @@ pub(crate) enum EntryType {
 
 #[cfg_attr(debug_assertions, derive(Debug))]
 pub struct Entry {
-    pub(crate) path: Arc<PathBuf>,
+    pub(crate) path: Path,
     pub(crate) ty: EntryType,
 }
 
 impl Entry {
-    pub(crate) fn new(path: Arc<PathBuf>, select_on_open: Option<Arc<PathBuf>>) -> Self {
+    pub(crate) fn new(path: Path, select_on_open: Option<Path>) -> Self {
         let mut ret = Self {
             path: path.clone(),
             ty: EntryType::File,
@@ -57,10 +58,10 @@ impl Entry {
     }
 
     pub(crate) fn opened(
-        path: Arc<PathBuf>,
-        mut entries: Vec<Arc<PathBuf>>,
+        path: Path,
+        mut entries: Vec<Path>,
         config: Rc<Config>,
-        select_on_open: Option<Arc<PathBuf>>,
+        select_on_open: Option<Path>,
     ) -> Self {
         entries.sort();
 
@@ -83,21 +84,21 @@ impl Entry {
         Self { path, ty }
     }
 
-    pub(crate) fn deleting(path: Arc<PathBuf>) -> Self {
+    pub(crate) fn deleting(path: Path) -> Self {
         Self {
             path,
             ty: EntryType::Deleting,
         }
     }
 
-    pub(crate) fn permission_denied(path: Arc<PathBuf>) -> Self {
+    pub(crate) fn permission_denied(path: Path) -> Self {
         Self {
             path,
             ty: EntryType::PermissionDenied,
         }
     }
 
-    pub(crate) fn file(path: Arc<PathBuf>) -> Self {
+    pub(crate) fn file(path: Path) -> Self {
         Self {
             path,
             ty: EntryType::File,

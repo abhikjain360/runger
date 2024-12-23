@@ -9,18 +9,20 @@ use tracing::error;
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::EnvFilter;
 
-pub(crate) use crate::config::Config;
-pub(crate) use crate::error::*;
-pub(crate) use crate::state::entry::{Entry, EntryType};
-pub(crate) use crate::state::{Command, DeleteCommand, State};
+use crate::config::Config;
+use crate::error::*;
+use crate::path::Path;
+use crate::state::entry::{Entry, EntryType};
+use crate::state::{Command, DeleteCommand, State};
 
-pub mod cli;
-pub mod config;
-pub mod error;
-pub mod handle_events;
-pub mod state;
-pub mod terminal;
-pub mod ui;
+pub(crate) mod cli;
+pub(crate) mod config;
+pub(crate) mod error;
+pub(crate) mod handle_events;
+pub(crate) mod path;
+pub(crate) mod state;
+pub(crate) mod terminal;
+pub(crate) mod ui;
 
 type Map<K, V> = IndexMap<K, V, ahash::random_state::RandomState>;
 

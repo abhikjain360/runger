@@ -5,10 +5,11 @@ use std::sync::Arc;
 use ratatui::widgets::ListState;
 
 use crate::config::Config;
+use crate::Path;
 
 #[cfg_attr(debug_assertions, derive(Debug))]
 pub struct Opened {
-    pub(crate) entries: Vec<Arc<PathBuf>>,
+    pub(crate) entries: Vec<Path>,
     // TODO: support multiple selection
     pub(crate) selected: Option<Selected>,
     pub(crate) config: Rc<Config>,
@@ -16,12 +17,12 @@ pub struct Opened {
 
 #[cfg_attr(debug_assertions, derive(Debug))]
 pub(crate) struct Selected {
-    path: Arc<PathBuf>,
+    path: Path,
     display_offset: usize,
 }
 
 impl Opened {
-    pub(crate) fn selected_entry(&self) -> Option<&Arc<PathBuf>> {
+    pub(crate) fn selected_entry(&self) -> Option<&Path> {
         self.selected.as_ref().map(|selected| &selected.path)
     }
 
@@ -119,14 +120,14 @@ impl Opened {
 }
 
 impl Selected {
-    pub fn new(path: Arc<PathBuf>, offset_from_top: usize) -> Self {
+    pub fn new(path: Path, offset_from_top: usize) -> Self {
         Self {
             path,
             display_offset: offset_from_top,
         }
     }
 
-    pub fn path(&self) -> &Arc<PathBuf> {
+    pub fn path(&self) -> &Path {
         &self.path
     }
 }

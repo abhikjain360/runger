@@ -1,5 +1,3 @@
-- custom Path which is a wrapper around `Arc<PathBuf>`
-- use rope for `Opened.entries` to avoid O(n) on deletion
 - creating file
   - this should block
 - renaming file
@@ -22,3 +20,4 @@
 - feature flags
 - minimal vim-like editor
 - use `cfg-if`
+- use rope for `Opened.entries` to avoid O(n) on deletion

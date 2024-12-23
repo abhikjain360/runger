@@ -1,16 +1,14 @@
-use std::path::PathBuf;
-use std::sync::Arc;
-
 use ratatui::{buffer::Buffer, layout::Rect, style::Stylize, text::Text, widgets::StatefulWidget};
 
 use crate::{
+    path::Path,
     state::entry::Opened,
     ui::state::entry::{bordered_list, render_empty_dir},
 };
 
 pub struct OpenedWidget {
     pub(super) selected: bool,
-    pub(super) path: Arc<PathBuf>,
+    pub(super) path: Path,
 }
 
 impl StatefulWidget for OpenedWidget {
@@ -30,7 +28,7 @@ impl StatefulWidget for OpenedWidget {
     }
 }
 
-fn path_formatting(path: &Arc<PathBuf>) -> Option<Text> {
+fn path_formatting(path: &Path) -> Option<Text> {
     let file_name = path.file_name()?.to_string_lossy().into_owned();
 
     let mut text = Text::from(file_name);

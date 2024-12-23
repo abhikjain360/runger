@@ -1,15 +1,15 @@
 use std::io;
-use std::path::PathBuf;
-use std::sync::Arc;
 
 use futures::future::BoxFuture;
 use futures::stream::FuturesUnordered;
 use futures::FutureExt;
 
+use crate::Path;
+
 #[cfg_attr(debug_assertions, derive(Debug))]
 pub(crate) struct DeleteJoiner {
     // TODO: remove boxed
-    inner: FuturesUnordered<BoxFuture<'static, io::Result<Arc<PathBuf>>>>,
+    inner: FuturesUnordered<BoxFuture<'static, io::Result<Path>>>,
 }
 
 impl DeleteJoiner {
@@ -25,7 +25,7 @@ impl DeleteJoiner {
     }
 
     #[tracing::instrument(level = "trace", skip(self))]
-    pub(crate) fn spawn(&mut self, path: Arc<PathBuf>) {
+    pub(crate) fn spawn(&mut self, path: Path) {
         self.inner.push(
             async move {
                 if !path.exists() {
@@ -47,7 +47,7 @@ impl DeleteJoiner {
         );
     }
 
-    pub(crate) async fn join_next(&mut self) -> Option<io::Result<Arc<PathBuf>>> {
+    pub(crate) async fn join_next(&mut self) -> Option<io::Result<Path>> {
         futures::StreamExt::next(&mut self.inner).await
     }
 }

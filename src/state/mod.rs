@@ -1,10 +1,10 @@
 use std::path::PathBuf;
 use std::rc::Rc;
-use std::sync::Arc;
 
 pub(crate) use crate::state::command::*;
 pub(crate) use crate::state::command_palette::CommandPalette;
 pub(crate) use crate::state::joiners::*;
+use crate::{Entry, EntryType, Path};
 
 mod command;
 mod command_palette;
@@ -18,8 +18,8 @@ mod visible_columns;
 /// - from `first_visible_column`, `selected_column` depth is valid
 /// - `first_visible_column` is there in `entries`
 pub(crate) struct State {
-    pub(crate) entries: crate::Map<Arc<PathBuf>, crate::Entry>,
-    pub(crate) first_visible_column: Arc<PathBuf>,
+    pub(crate) entries: crate::Map<Path, Entry>,
+    pub(crate) first_visible_column: Path,
     pub(crate) config: Rc<crate::Config>,
     /// The column that is currently selected from the visible columns.
     pub(crate) selected_column: usize,
@@ -32,8 +32,8 @@ impl State {
     pub(crate) fn new(path: PathBuf, config: crate::Config) -> crate::Result<Self> {
         let config = Rc::new(config);
 
-        let first_visible_column = Arc::new(path.canonicalize()?);
-        let first_entry = crate::Entry::new(first_visible_column.clone(), None);
+        let first_visible_column = Path::from(path.canonicalize()?);
+        let first_entry = Entry::new(first_visible_column.clone(), None);
 
         let entries =
             crate::Map::from_iter(std::iter::once((first_visible_column.clone(), first_entry)));
@@ -57,12 +57,12 @@ impl State {
 
     fn create_entry_if_not_exists(
         &mut self,
-        path: &Arc<PathBuf>,
-        select_on_open: Option<Arc<PathBuf>>,
-    ) -> &mut crate::Entry {
+        path: Path,
+        select_on_open: Option<Path>,
+    ) -> &mut Entry {
         self.entries
             .entry(path.clone())
-            .or_insert(crate::Entry::new(path.clone(), select_on_open))
+            .or_insert(Entry::new(path.clone(), select_on_open))
     }
 
     /// Returns `true` if path is opened.
@@ -89,17 +89,17 @@ impl State {
                 return false;
             };
 
-            self.create_entry_if_not_exists(&next_path, None);
+            self.create_entry_if_not_exists(next_path.clone(), None);
 
             #[cfg(debug_assertions)]
             {
-                entry = self.entry_mut(next_path).unwrap();
+                entry = self.entry_mut(next_path.as_ref()).unwrap();
             }
 
             #[cfg(not(debug_assertions))]
             {
                 // SAFETY: we just inserted it in
-                entry = unsafe { self.entry_mut(next_path).unwrap_unchecked() };
+                entry = unsafe { self.entry_mut(next_path.as_ref()).unwrap_unchecked() };
             }
         }
 
@@ -107,7 +107,7 @@ impl State {
     }
 
     /// Helper function for `move_right`. **DO NOT CALL DIRECTLY**, it might panic.
-    fn get_next_visible_column(&mut self) -> Option<Arc<PathBuf>> {
+    fn get_next_visible_column(&mut self) -> Option<Path> {
         let first_visible_entry = match self.visible_columns_at(0) {
             Some(entry) => entry,
             None => {
@@ -118,9 +118,9 @@ impl State {
 
         // move to right if opened and has a selected_entry
         match &first_visible_entry.ty {
-            crate::EntryType::Opened(opened) => {
+            EntryType::Opened(opened) => {
                 if let Some(next_path) = opened.selected_entry().cloned() {
-                    self.create_entry_if_not_exists(&next_path, None);
+                    self.create_entry_if_not_exists(next_path.clone(), None);
                     self.try_open_selected_path();
 
                     return Some(next_path);
@@ -130,7 +130,7 @@ impl State {
                 None
             }
 
-            crate::EntryType::Unopened(_) => {
+            EntryType::Unopened(_) => {
                 tracing::error!("encountered unopened entry even after State.entry_at_depth check");
                 let path = first_visible_entry.path.clone();
                 self.joiners.read_dir_joiner.spawn(path);
@@ -186,10 +186,13 @@ impl State {
             // parent_path does not exist
             return false;
         };
-        let parent_path = Arc::new(parent_path.to_path_buf());
+        let parent_path = Path::from(parent_path.to_path_buf());
 
         // create an unopened entry for the parent path if there is none
-        self.create_entry_if_not_exists(&parent_path, Some(self.first_visible_column.clone()));
+        self.create_entry_if_not_exists(
+            parent_path.clone(),
+            Some(self.first_visible_column.clone()),
+        );
 
         // try to open parent path
         self.first_visible_column = parent_path;
@@ -202,12 +205,12 @@ impl State {
 
     // TODO: support deleting multiple entries
     #[tracing::instrument(level = "trace", skip(self))]
-    pub(crate) fn delete_path(&mut self, path: Arc<PathBuf>) {
+    pub(crate) fn delete_path(&mut self, path: Path) {
         let path = if path.is_absolute() {
             path
         } else {
             match path.as_ref().canonicalize() {
-                Ok(path) => Arc::new(path),
+                Ok(path) => Path::from(path),
                 Err(e) => {
                     tracing::error!("unable to canonicalize path = {path:?}: {e}");
                     return;
@@ -219,22 +222,22 @@ impl State {
         self.deleting_path_entry(path);
     }
 
-    fn deleting_path_entry(&mut self, path: Arc<PathBuf>) {
+    fn deleting_path_entry(&mut self, path: Path) {
         let Some(entry) = self.entries.get_mut(path.as_ref()) else {
             tracing::error!("entry does not exist to delete");
             return;
         };
 
-        let entry = std::mem::replace(entry, crate::Entry::deleting(path));
+        let entry = std::mem::replace(entry, Entry::deleting(path));
 
-        if let crate::EntryType::Opened(opened) = entry.ty {
+        if let EntryType::Opened(opened) = entry.ty {
             for entry in opened.entries {
                 self.delete_path_entry(entry);
             }
         }
     }
 
-    pub(crate) fn delete_path_entry(&mut self, path: Arc<PathBuf>) {
+    pub(crate) fn delete_path_entry(&mut self, path: Path) {
         let Some(entry) = self.entries.swap_remove(path.as_ref()) else {
             return;
         };
@@ -245,7 +248,7 @@ impl State {
             .parent()
             .and_then(|path| self.entries.get_mut(&path.to_path_buf()))
         {
-            if let crate::EntryType::Opened(opened) = &mut parent_entry.ty {
+            if let EntryType::Opened(opened) = &mut parent_entry.ty {
                 if let Some(delete_idx) = opened
                     .entries
                     .iter()
@@ -284,18 +287,18 @@ impl State {
         }
 
         // if deleted entry is opened (that is, a directory), delete all its children as well
-        if let crate::EntryType::Opened(opened) = entry.ty {
+        if let EntryType::Opened(opened) = entry.ty {
             for entry in opened.entries {
                 self.delete_path_entry(entry);
             }
         }
     }
 
-    pub(crate) fn entry(&self, path: impl AsRef<PathBuf>) -> Option<&crate::Entry> {
+    pub(crate) fn entry(&self, path: impl AsRef<std::path::Path>) -> Option<&Entry> {
         self.entries.get(path.as_ref())
     }
 
-    pub(crate) fn first_entry(&self) -> &crate::Entry {
+    pub(crate) fn first_entry(&self) -> &Entry {
         let entry = self.entries.get(&self.first_visible_column);
 
         #[cfg(debug_assertions)]
@@ -310,7 +313,7 @@ impl State {
         }
     }
 
-    pub(crate) fn selected_entry(&self) -> &crate::Entry {
+    pub(crate) fn selected_entry(&self) -> &Entry {
         #[cfg(debug_assertions)]
         {
             self.visible_columns_at(self.selected_column)
@@ -325,7 +328,7 @@ impl State {
         }
     }
 
-    pub(crate) fn selected_entry_mut(&mut self) -> &mut crate::Entry {
+    pub(crate) fn selected_entry_mut(&mut self) -> &mut Entry {
         #[cfg(debug_assertions)]
         {
             self.visible_columns_mut_at(self.selected_column)
@@ -340,7 +343,7 @@ impl State {
         }
     }
 
-    fn entry_mut(&mut self, path: impl AsRef<PathBuf>) -> Option<&mut crate::Entry> {
+    fn entry_mut(&mut self, path: impl AsRef<std::path::Path>) -> Option<&mut Entry> {
         self.entries.get_mut(path.as_ref())
     }
 
@@ -349,18 +352,15 @@ impl State {
     /// column.
     ///
     /// Does not attempt to open any entries.
-    pub(crate) fn entry_at_depth(
-        &self,
-        depth: usize,
-    ) -> Result<&crate::Entry, (&crate::Entry, usize)> {
+    pub(crate) fn entry_at_depth(&self, depth: usize) -> Result<&Entry, (&Entry, usize)> {
         let mut current_entry = self.first_entry();
 
         for current_depth in 1..=depth {
             match &current_entry.ty {
-                crate::EntryType::Opened(opened) => {
+                EntryType::Opened(opened) => {
                     current_entry = opened
                         .selected_entry()
-                        .and_then(|entry| self.entry(entry))
+                        .and_then(|entry| self.entry(entry.as_ref()))
                         .ok_or((current_entry, current_depth))?;
                 }
                 _ => return Err((current_entry, current_depth)),

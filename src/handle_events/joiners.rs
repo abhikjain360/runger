@@ -1,12 +1,11 @@
 use std::io;
-use std::path::PathBuf;
-use std::sync::Arc;
 use std::time::Duration;
 
 use futures::stream::FuturesUnordered;
 use futures::{FutureExt, StreamExt};
 
 use crate::state::ReadDirResult;
+use crate::Path;
 
 use super::HandledEvent;
 
@@ -15,7 +14,7 @@ impl crate::State {
     /// redraw.
     pub(super) fn poll_io_event(&mut self, timeout: Duration) -> io::Result<HandledEvent> {
         enum PollResult {
-            Delete(io::Result<Arc<PathBuf>>),
+            Delete(io::Result<Path>),
             ReadDir(ReadDirResult),
             Timeout,
         }
