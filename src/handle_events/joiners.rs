@@ -86,11 +86,11 @@ impl crate::State {
             // TODO: verify that we do need to redraw, as we might have updated optimistically
             PollResult::ReadDir(res) => {
                 self.handle_read_dir_event(res)?;
-                self.try_open_selected_path();
             }
             PollResult::Timeout => return Ok(HandledEvent::Nothing),
         }
 
+        self.try_open_selected_path();
         Ok(HandledEvent::Redraw)
     }
 

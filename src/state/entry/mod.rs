@@ -65,9 +65,14 @@ impl Entry {
         entries.sort();
 
         let selected = select_on_open
-            .and_then(|path| entries.iter().position(|e| e == &path))
-            .map(|idx| Selected::new(idx, 0))
-            .or_else(|| entries.first().map(|_| Selected::new(0, 0)));
+            .and_then(|selected_path| {
+                entries
+                    .binary_search(&selected_path)
+                    .ok()
+                    .map(|_| selected_path)
+            })
+            .or_else(|| entries.first().cloned())
+            .map(|selected_path| Selected::new(selected_path, 0));
 
         let ty = EntryType::Opened(Opened {
             selected,

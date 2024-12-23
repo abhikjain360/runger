@@ -9,6 +9,10 @@ impl State {
         &mut self,
         key: &KeyEvent,
     ) -> crate::Result<HandledEvent> {
+        if self.command_palette.is_empty() {
+            return Ok(HandledEvent::Nothing);
+        }
+
         match key.code {
             KeyCode::Esc => self.command_palette.set_empty(),
 
@@ -17,7 +21,7 @@ impl State {
                 .inspect_err(|e| tracing::error!("unable to execute command: {e}"))?,
 
             // TODO: command completion rotations
-            KeyCode::Tab => {}
+            KeyCode::Tab => self.complete_command(),
 
             _ => return Ok(self.command_palette.handle_key_event(key)),
         };

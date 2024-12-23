@@ -46,4 +46,8 @@ impl CommandPalette {
             Self::Command(command) => command.cursor_pos(),
         }
     }
+
+    pub(crate) fn is_empty(&self) -> bool {
+        matches!(self, Self::Empty)
+    }
 }

@@ -75,6 +75,7 @@ fn run(path: PathBuf, config_path: PathBuf) -> Result<()> {
 
                 // TODO: make show_error_duration configurable
                 state.command_palette.set_error(e, Duration::from_secs(5));
+                terminal.draw(state.ui())?;
             }
         }
     }

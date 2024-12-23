@@ -1,7 +1,11 @@
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+
 pub(crate) use crate::state::command::delete::DeleteCommand;
 
 use crate::state::{CommandPalette, State};
 
+mod completion;
 mod delete;
 
 #[cfg_attr(debug_assertions, derive(Debug))]
@@ -13,43 +17,64 @@ pub(crate) enum Command {
 pub enum CommandError {
     #[error("Invalid command")]
     InvalidCommand,
+    #[error("Invalid path")]
+    InvalidPath,
 }
 
 impl State {
     #[tracing::instrument(err, level = "trace", skip(self))]
     pub(crate) fn execute_command(&mut self) -> Result<(), CommandError> {
+        #[expect(clippy::single_match)]
         match self.command_palette.take() {
-            CommandPalette::Command(Command::Delete(DeleteCommand::Confirmed { path })) => {
-                self.delete_path(path)
-            }
+            CommandPalette::Command(Command::Delete(delete_command)) => {
+                let path = match delete_command {
+                    DeleteCommand::Confirmed { path } => path,
 
-            CommandPalette::Command(Command::Delete(DeleteCommand::Init)) => {
-                let entry = self.selected_entry();
-                let path = match &entry.ty {
-                    crate::EntryType::Opened(opened) => match opened.selected_entry() {
-                        Some(selected_entry) => selected_entry.clone(),
-                        None => {
-                            tracing::warn!(
+                    DeleteCommand::Init => {
+                        let Some(opened) = self.selected_entry().get_opened() else {
+                            tracing::error!("attempted to delete from unopened entry");
+                            return Err(CommandError::InvalidCommand);
+                        };
+
+                        let Some(selected_entry) = opened.selected_entry() else {
+                            tracing::error!(
                                 "attempted to delete without selecting an entry in the column"
                             );
                             return Err(CommandError::InvalidCommand);
-                        }
-                    },
+                        };
 
-                    crate::EntryType::File => entry.path.clone(),
+                        selected_entry.clone()
+                    }
 
-                    _ => return Ok(()),
+                    DeleteCommand::Typing { input } => self
+                        .match_file_path(input)
+                        .ok_or(CommandError::InvalidPath)?,
                 };
-                self.delete_path(path);
+
+                self.delete_path(path)
             }
 
-            // TODO: support parsing input as command
-            CommandPalette::Typing { input: _ } => todo!(),
-
             _ => {}
-        }
+        };
 
         Ok(())
+    }
+
+    fn match_file_path(&self, path: impl AsRef<Path>) -> Option<Arc<PathBuf>> {
+        let input_path = path.as_ref();
+        let opened = self.selected_entry().get_opened()?;
+
+        opened
+            .entries
+            .iter()
+            .find(|entry| {
+                entry
+                    .as_path()
+                    .file_name()
+                    .and_then(|file_name| file_name.to_str())
+                    .map_or(false, |file_name| file_name == input_path.to_string_lossy())
+            })
+            .cloned()
     }
 }
 

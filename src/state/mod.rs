@@ -245,25 +245,32 @@ impl State {
             .parent()
             .and_then(|path| self.entries.get_mut(&path.to_path_buf()))
         {
-            // TODO: move this to a separate function inside `Opened`
             if let crate::EntryType::Opened(opened) = &mut parent_entry.ty {
-                if let Some(idx) = opened
+                if let Some(delete_idx) = opened
                     .entries
                     .iter()
                     .position(|e| e.as_ref() == path.as_ref())
                 {
-                    opened.entries.remove(idx);
+                    let deleted_path = opened.entries.remove(delete_idx);
 
                     // if after deleting the entry, the parent is empty, move left as we will
                     // render parent as empty dir
                     if opened.entries.is_empty() {
                         opened.selected = None;
                         self.move_left();
-                    } else if let Some(selected) = opened.selected.as_mut() {
-                        // if after deleting the entry, the selected entry is at the end of the
-                        // entries, move it to the first entry
-                        if selected.idx() >= opened.entries.len() {
-                            *selected = crate::state::entry::Selected::new(0, 0);
+                    } else
+                    // if deleted entry was selected, then set it to the next entry
+                    if let Some(selected) = &opened.selected {
+                        if selected.path() == &deleted_path {
+                            // as 1 entry was deleted, delete_idx is already at next entry so we
+                            // don't need to add 1
+                            let mut next_idx = delete_idx;
+                            // bound check
+                            if next_idx >= opened.entries.len() {
+                                next_idx = 0;
+                            }
+
+                            opened.set_selected(next_idx, 0);
                         }
                     } else {
                         tracing::warn!("opened entry which is not empty has no selected entry");
