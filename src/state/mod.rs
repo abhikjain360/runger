@@ -17,6 +17,9 @@ mod visible_columns;
 /// - `first_visible_column` exists in `entries`
 /// - from `first_visible_column`, `selected_column` depth is valid
 /// - `first_visible_column` is there in `entries`
+//
+// TODO: one of the ways to remove use of `unsafe` is to split `State` into multiple structs and
+// then have functions take in more arguments. try this someday.
 pub(crate) struct State {
     pub(crate) entries: crate::Map<Path, Entry>,
     pub(crate) first_visible_column: Path,
