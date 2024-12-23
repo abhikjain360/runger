@@ -1,12 +1,11 @@
+use crate::state::command_palette::Typing;
 use crate::Path;
 
 // TODO: support deleting multiple entries
 #[cfg_attr(debug_assertions, derive(Debug))]
 pub(crate) enum DeleteCommand {
     Init,
-    Typing {
-        input: String,
-    },
+    Typing(Typing),
     #[expect(dead_code)]
     Confirmed {
         path: Path,
@@ -16,13 +15,11 @@ pub(crate) enum DeleteCommand {
 pub const DELETE_COMMAND: &str = ":delete ";
 
 impl DeleteCommand {
-    pub(crate) fn cursor_pos(&self) -> Option<u16> {
-        match self {
-            Self::Init => Some(DELETE_COMMAND.len() as u16),
-            Self::Typing { input } => Some(DELETE_COMMAND.len() as u16 + input.len() as u16),
-            Self::Confirmed { path } => {
-                Some(DELETE_COMMAND.len() as u16 + path.to_string_lossy().len() as u16)
-            }
-        }
+    pub(crate) fn cursor_pos(&self) -> u16 {
+        (match self {
+            Self::Init => 0_u16,
+            Self::Typing(typing) => typing.cursor_pos(),
+            Self::Confirmed { path } => path.to_string_lossy().len() as u16,
+        }) + DELETE_COMMAND.len() as u16
     }
 }

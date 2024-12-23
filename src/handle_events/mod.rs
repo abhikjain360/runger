@@ -105,9 +105,7 @@ impl State {
             KeyCode::Char('h') | KeyCode::Left => _ = self.move_left(),
 
             KeyCode::Char(';') | KeyCode::Char(':') => {
-                self.command_palette = CommandPalette::Typing {
-                    input: String::new(),
-                }
+                self.command_palette = CommandPalette::Typing(Default::default());
             }
 
             KeyCode::Char('d') => self.command_palette.set_delete_command_init(),

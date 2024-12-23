@@ -7,7 +7,7 @@ pub(crate) use crate::state::joiners::*;
 use crate::{Entry, EntryType, Path};
 
 mod command;
-mod command_palette;
+pub(crate) mod command_palette;
 pub(crate) mod entry;
 mod joiners;
 mod visible_columns;
@@ -71,7 +71,9 @@ impl State {
 
         // SAFETY: we do not borrow self.joiners.read_dir_joiners again
         let joiner = unsafe {
-            std::mem::transmute::<&mut _, &mut ReadDirJoiner>(&mut self.joiners.read_dir_joiner)
+            std::mem::transmute::<&mut ReadDirJoiner, &mut ReadDirJoiner>(
+                &mut self.joiners.read_dir_joiner,
+            )
         };
         let mut entry = self.selected_entry_mut();
 
@@ -219,13 +221,14 @@ impl State {
         };
 
         self.joiners.delete_joiner.spawn(path.clone());
-        self.deleting_path_entry(path);
+        if !self.deleting_path_entry(path.clone()) {
+            self.delete_path_entry_from_parent(&path);
+        };
     }
 
-    fn deleting_path_entry(&mut self, path: Path) {
+    fn deleting_path_entry(&mut self, path: Path) -> bool {
         let Some(entry) = self.entries.get_mut(path.as_ref()) else {
-            tracing::error!("entry does not exist to delete");
-            return;
+            return false;
         };
 
         let entry = std::mem::replace(entry, Entry::deleting(path));
@@ -235,6 +238,8 @@ impl State {
                 self.delete_path_entry(entry);
             }
         }
+
+        true
     }
 
     pub(crate) fn delete_path_entry(&mut self, path: Path) {
@@ -243,8 +248,18 @@ impl State {
         };
 
         // delete the entry from parent, if exists
-        if let Some(parent_entry) = entry
-            .path
+        self.delete_path_entry_from_parent(&entry.path);
+
+        // if deleted entry is opened (that is, a directory), delete all its children as well
+        if let EntryType::Opened(opened) = entry.ty {
+            for entry in opened.entries {
+                self.delete_path_entry(entry);
+            }
+        }
+    }
+
+    pub(crate) fn delete_path_entry_from_parent(&mut self, path: &Path) {
+        if let Some(parent_entry) = path
             .parent()
             .and_then(|path| self.entries.get_mut(&path.to_path_buf()))
         {
@@ -283,13 +298,6 @@ impl State {
                 }
             } else {
                 tracing::warn!("parent is not opened but still has children");
-            }
-        }
-
-        // if deleted entry is opened (that is, a directory), delete all its children as well
-        if let EntryType::Opened(opened) = entry.ty {
-            for entry in opened.entries {
-                self.delete_path_entry(entry);
             }
         }
     }

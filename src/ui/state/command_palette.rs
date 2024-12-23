@@ -24,8 +24,8 @@ impl StatefulWidget for CommandPaletteWidget {
                 let error = format!("error: {}", error);
                 Paragraph::new(error).render(area, buf);
             }
-            CommandPalette::Typing { input } => {
-                let input = format!(":{}", input);
+            CommandPalette::Typing(typing) => {
+                let input = format!(":{}", typing.visible_query());
                 Paragraph::new(input).render(area, buf);
             }
             CommandPalette::Command(command) => CommandWidget.render(area, buf, command),

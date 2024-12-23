@@ -20,8 +20,8 @@ impl State {
                 .execute_command()
                 .inspect_err(|e| tracing::error!("unable to execute command: {e}"))?,
 
-            // TODO: command completion rotations
-            KeyCode::Tab => self.complete_command(),
+            KeyCode::Tab => self.complete_command(true),
+            KeyCode::BackTab => self.complete_command(false),
 
             _ => return Ok(self.command_palette.handle_key_event(key)),
         };
@@ -33,19 +33,15 @@ impl State {
 impl CommandPalette {
     pub(super) fn handle_key_event(&mut self, key: &KeyEvent) -> HandledEvent {
         match self {
-            CommandPalette::Typing { input }
-            | CommandPalette::Command(Command::Delete(DeleteCommand::Typing { input })) => {
+            CommandPalette::Typing(typing)
+            | CommandPalette::Command(Command::Delete(DeleteCommand::Typing(typing))) => {
                 match key.code {
-                    KeyCode::Char(c) => {
-                        input.push(c);
-                    }
-
-                    KeyCode::Backspace => {
-                        input.pop();
-                    }
+                    KeyCode::Char(c) => typing.push_char(c),
+                    KeyCode::Backspace => typing.pop_char(),
 
                     _ => {}
                 };
+
                 HandledEvent::Redraw
             }
 

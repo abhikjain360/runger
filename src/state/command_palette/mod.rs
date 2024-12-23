@@ -1,6 +1,9 @@
 use std::time::Instant;
 
 use crate::state::{Command, DeleteCommand};
+pub(crate) use typing::Typing;
+
+mod typing;
 
 #[cfg_attr(debug_assertions, derive(Debug))]
 pub(crate) enum CommandPalette {
@@ -9,9 +12,7 @@ pub(crate) enum CommandPalette {
         error: crate::Error,
         show_until: std::time::Instant,
     },
-    Typing {
-        input: String,
-    },
+    Typing(Typing),
     Command(Command),
 }
 
@@ -36,14 +37,14 @@ impl CommandPalette {
     }
 
     pub(crate) fn set_delete_command_typing(&mut self, input: String) {
-        *self = Self::Command(Command::Delete(DeleteCommand::Typing { input }));
+        *self = Self::Command(Command::Delete(DeleteCommand::Typing(Typing::new(input))));
     }
 
     pub(crate) fn cursor_pos(&self) -> Option<u16> {
         match self {
             Self::Empty | Self::Error { .. } => None,
-            Self::Typing { input } => Some(input.len() as u16 + 1),
-            Self::Command(command) => command.cursor_pos(),
+            Self::Typing(typing) => Some(typing.cursor_pos() + 1),
+            Self::Command(command) => Some(command.cursor_pos()),
         }
     }
 

@@ -8,8 +8,8 @@ impl StatefulWidget for DeleteCommandWidget {
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
         match state {
             crate::DeleteCommand::Init => Paragraph::new(":delete ").render(area, buf),
-            crate::DeleteCommand::Typing { input } => {
-                Paragraph::new(format!(":delete {input}")).render(area, buf)
+            crate::DeleteCommand::Typing(typing) => {
+                Paragraph::new(format!(":delete {}", typing.visible_query())).render(area, buf)
             }
             crate::DeleteCommand::Confirmed { path } => {
                 Paragraph::new(format!(":delete {}", path.display())).render(area, buf)

@@ -44,8 +44,8 @@ impl State {
                         selected_entry.clone()
                     }
 
-                    DeleteCommand::Typing { input } => self
-                        .match_file_path(input)
+                    DeleteCommand::Typing(typing) => self
+                        .match_file_path(typing.visible_query())
                         .ok_or(CommandError::InvalidPath)?,
                 };
 
@@ -77,7 +77,7 @@ impl State {
 }
 
 impl Command {
-    pub(crate) fn cursor_pos(&self) -> Option<u16> {
+    pub(crate) fn cursor_pos(&self) -> u16 {
         match self {
             Self::Delete(delete) => delete.cursor_pos(),
         }
